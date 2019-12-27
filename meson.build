@@ -8,7 +8,7 @@ project('trollauncher', 'cpp',
   version : '0.1.0',
   license : 'MIT',
   default_options : [
-    'cpp_std=c++11',
+    'cpp_std=c++17',
     'buildtype=debugoptimized',
     'warning_level=3'
     # Apparently, we can't have nice things...
@@ -32,6 +32,7 @@ endif
 # Dependencies #
 ################
 
+fs_dep = meson.get_compiler('cpp').find_library('stdc++fs')
 boost_dep = dependency('boost', version : '>=1.65.0', modules : ['system', 'filesystem'])
 libzippp_dep = dependency('libzippp', fallback : ['libzippp', 'libzippp_dep'])
 # wxwidgets_dep = dependency('wxwidgets', version : '>=3.0.0', modules : wxwidgets_mods)
@@ -48,6 +49,6 @@ trollauncher_srcs = [
 executable(
   'trollauncher', trollauncher_srcs,
   include_directories : [],
-  dependencies : [boost_dep, libzippp_dep],
+  dependencies : [fs_dep, boost_dep, libzippp_dep],
   link_args : main_link_args
 )
