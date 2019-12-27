@@ -1,0 +1,3 @@
+[submodule "subprojects/libzippp"]
+	path = subprojects/libzippp
+	url = git@github.com:tprk77/libzippp.git
