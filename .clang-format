@@ -1,0 +1,20 @@
+# Clang Format File
+---
+Language: Cpp
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 2
+
+# Braces formatting
+BreakBeforeBraces: Stroustrup
+
+# Pointer (*) and Reference (&) formatting
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Miscellaneous formatting
+AllowShortFunctionsOnASingleLine: Empty
+BreakBeforeBinaryOperators: NonAssignment
+IndentCaseLabels: false
+SpaceAfterCStyleCast: true
+...
