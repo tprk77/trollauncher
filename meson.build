@@ -21,9 +21,11 @@ project('trollauncher', 'cpp',
 ###################
 
 # Use static linking on Windows
+w32_extra_deps = []
 wxwidgets_mods = []
 main_link_args = []
 if build_machine.system() == 'windows'
+  w32_extra_deps = [meson.get_compiler('cpp').find_library('ws2_32')]
   wxwidgets_mods = ['--static']
   main_link_args = ['-static']
 endif
@@ -43,12 +45,18 @@ nlohmann_json_dep = dependency('nlohmann_json', fallback : ['nlohmann_json', 'nl
 ###############
 
 trollauncher_srcs = [
-    'trollauncher/main.cpp'
+    'trollauncher/error_codes.cpp',
+    'trollauncher/forge_installer.cpp',
+    'trollauncher/java_detector.cpp',
+    'trollauncher/launcher_profiles_editor.cpp',
+    'trollauncher/main.cpp',
+    'trollauncher/modpack_installer.cpp',
+    'trollauncher/utils.cpp'
 ]
 
 executable(
   'trollauncher', trollauncher_srcs,
   include_directories : [],
-  dependencies : [fs_dep, boost_dep, libzippp_dep, nlohmann_json_dep],
+  dependencies : [fs_dep, boost_dep, libzippp_dep, nlohmann_json_dep] + w32_extra_deps,
   link_args : main_link_args
 )

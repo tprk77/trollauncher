@@ -16,31 +16,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#include <cstdlib>
-#include <iostream>
+#ifndef TROLLAUNCHER_JAVA_DETECTOR_HPP_
+#define TROLLAUNCHER_JAVA_DETECTOR_HPP_
 
-#include "trollauncher/java_detector.hpp"
-#include "trollauncher/modpack_installer.hpp"
+#include <filesystem>
+#include <optional>
 
-int main(const int argc, const char** argv)
-{
-  using namespace tl;
-  std::srand(std::time(nullptr));
-  if (argc != 2) {
-    std::cerr << "Usage: trollauncher MODPACK-PATH" << std::endl;
-    return 1;
-  }
-  const std::string modpack_path = argv[1];
-  std::error_code ec;
-  auto mi_ptr = ModpackInstaller::Create(modpack_path, &ec);
-  if (mi_ptr == nullptr) {
-    std::cerr << "ERROR: " << ec << " " << ec.message() << std::endl;
-    return 1;
-  }
-  if (!mi_ptr->Install(&ec)) {
-    std::cerr << "ERROR: " << ec << " " << ec.message() << std::endl;
-    return 1;
-  }
-  std::cout << "Modpack installed successfully!" << std::endl;
-  return 0;
-}
+namespace tl {
+
+class JavaDetector final {
+ public:
+  JavaDetector() = delete;
+
+  static std::optional<std::filesystem::path> GetAnyJava();
+  static std::optional<std::filesystem::path> GetJavaVersion8();
+};
+
+}  // namespace tl
+
+#endif  // TROLLAUNCHER_JAVA_DETECTOR_HPP_

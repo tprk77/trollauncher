@@ -16,31 +16,37 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#include <cstdlib>
-#include <iostream>
+#ifndef TROLLAUNCHER_FORGE_INSTALLER_HPP_
+#define TROLLAUNCHER_FORGE_INSTALLER_HPP_
 
-#include "trollauncher/java_detector.hpp"
-#include "trollauncher/modpack_installer.hpp"
+#include <filesystem>
+#include <memory>
+#include <optional>
+#include <system_error>
 
-int main(const int argc, const char** argv)
-{
-  using namespace tl;
-  std::srand(std::time(nullptr));
-  if (argc != 2) {
-    std::cerr << "Usage: trollauncher MODPACK-PATH" << std::endl;
-    return 1;
-  }
-  const std::string modpack_path = argv[1];
-  std::error_code ec;
-  auto mi_ptr = ModpackInstaller::Create(modpack_path, &ec);
-  if (mi_ptr == nullptr) {
-    std::cerr << "ERROR: " << ec << " " << ec.message() << std::endl;
-    return 1;
-  }
-  if (!mi_ptr->Install(&ec)) {
-    std::cerr << "ERROR: " << ec << " " << ec.message() << std::endl;
-    return 1;
-  }
-  std::cout << "Modpack installed successfully!" << std::endl;
-  return 0;
-}
+namespace tl {
+
+class ForgeInstaller final {
+ public:
+  using Ptr = std::shared_ptr<ForgeInstaller>;
+
+  static Ptr Create(const std::filesystem::path& installer_path,
+                    const std::filesystem::path& dot_minecraft_path, std::error_code* ec);
+
+  std::string GetForgeVersion() const;
+  std::string GetMinecraftVersion() const;
+
+  bool IsInstalled() const;
+
+  bool Install(std::error_code* ec);
+
+ private:
+  ForgeInstaller();
+
+  struct Data_;
+  std::unique_ptr<Data_> data_;
+};
+
+}  // namespace tl
+
+#endif  // TROLLAUNCHER_FORGE_INSTALLER_HPP_
