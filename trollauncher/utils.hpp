@@ -21,6 +21,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace tl {
 
@@ -30,6 +31,7 @@ namespace tl {
 std::optional<std::string> GetEnvironmentVar(const std::string& name);
 std::string GetRandomId();
 std::string GetRandomName();
+std::vector<std::string> GetDefaultLauncherIcons();
 
 }  // namespace tl
 

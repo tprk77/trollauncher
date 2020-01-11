@@ -19,7 +19,6 @@
 #include "trollauncher/utils.hpp"
 
 #include <cstdlib>
-#include <vector>
 
 namespace tl {
 
@@ -178,6 +177,92 @@ static const std::vector<std::string> big_list_o_rocks = {
     "Whiteschist",
 };
 
+static const std::vector<std::string> default_launcher_icons = {
+    // Line 1
+    "Bedrock",
+    "Bookshelf",
+    "Brick",
+    "Cake",
+    "Carved_Pumpkin",
+    "Chest",
+    "Clay",
+    "Coal_Block",
+    "Coal_Ore",
+    "Cobblestone",
+    // Line 2
+    "Crafting_Table",
+    "Creeper_Head",
+    "Diamond_Block",
+    "Diamond_Ore",
+    "Dirt",
+    "Dirt_Podzol",
+    "Dirt_Snow",
+    "Emerald_Block",
+    "Emerald_Ore",
+    "Enchanting_Table",
+    "End_Stone",
+    // Line 3
+    "Farmland",
+    "Furnace",
+    "Furnace_On",
+    "Glass",
+    "Glazed_Terracotta_Light_Blue",
+    "Glazed_Terracotta_Orange",
+    "Glazed_Terracotta_White",
+    "Glowstone",
+    "Gold_Block",
+    "Gold_Ore",
+    "Grass",
+    // Line 4
+    "Gravel",
+    "Hardened_Clay",
+    "Ice_Packed",
+    "Iron_Block",
+    "Iron_Ore",
+    "Lapis_Ore",
+    "Leaves_Birch",
+    "Leaves_Jungle",
+    "Leaves_Oak",
+    "Leaves_Spruce",
+    "Lectern_Book",
+    // Line 5
+    "Log_Acacia",
+    "Log_Birch",
+    "Log_DarkOak",
+    "Log_Jungle",
+    "Log_Oak",
+    "Log_Spruce",
+    "Mycelium",
+    "Nether_Brick",
+    "Netherrack",
+    "Obsidian",
+    "Planks_Acacia",
+    // Line 6
+    "Planks_Birch",
+    "Planks_DarkOak",
+    "Planks_Jungle",
+    "Planks_Oak",
+    "Planks_Spruce",
+    "Quartz_Ore",
+    "Red_Sand",
+    "Red_Sandstone",
+    "Redstone_Block",
+    "Redstone_Ore",
+    "Sand",
+    // Line 7
+    "Sandstone",
+    "Skeleton_Skull",
+    "Snow",
+    "Soul_Sand",
+    "Stone",
+    "Stone_Andesite",
+    "Stone_Diorite",
+    "Stone_Granite",
+    "TNT",
+    "Water",
+    "Wool",
+};
+
 }  // namespace
 
 std::optional<std::string> GetEnvironmentVar(const std::string& name)
@@ -204,6 +289,11 @@ std::string GetRandomName()
   const int rand_rock_index = std::rand() % big_list_o_rocks.size();
   const int rand_number = std::rand() % 100;
   return big_list_o_rocks.at(rand_rock_index) + " " + std::to_string(rand_number);
+}
+
+std::vector<std::string> GetDefaultLauncherIcons()
+{
+  return default_launcher_icons;
 }
 
 }  // namespace tl
