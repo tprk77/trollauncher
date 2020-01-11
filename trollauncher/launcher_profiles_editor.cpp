@@ -215,7 +215,7 @@ std::string GetCurrentTimeAsString(std::optional<std::chrono::seconds> time_modi
   std::time_t now_time_t = std::chrono::system_clock::to_time_t(
       now_chrono + time_modifier_opt.value_or(std::chrono::seconds(0)));
   char time_c_str[sizeof "0000-00-00T00:00:00.000Z"];
-  std::strftime(time_c_str, sizeof time_c_str, "%FT%T.000Z", std::gmtime(&now_time_t));
+  std::strftime(time_c_str, sizeof time_c_str, "%Y-%m-%dT%H:%M:%S.000Z", std::gmtime(&now_time_t));
   return time_c_str;
 }
 
