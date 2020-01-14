@@ -16,15 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#include <cstdlib>
-#include <ctime>
+troll ICON trollface.ico
 
-#include "trollauncher/gui.hpp"
-
-int main(const int argc, const char* const argv[])
-{
-  using namespace tl;
-  std::srand(std::time(nullptr));
-  // TODO Add back command line interface
-  return GuiMain(argc, argv);
-}
+#include "wx/msw/wx.rc"

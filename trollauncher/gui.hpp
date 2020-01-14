@@ -16,15 +16,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-#include <cstdlib>
-#include <ctime>
+#ifndef TROLLAUNCHER_GUI_HPP_
+#define TROLLAUNCHER_GUI_HPP_
 
-#include "trollauncher/gui.hpp"
+namespace tl {
 
-int main(const int argc, const char* const argv[])
-{
-  using namespace tl;
-  std::srand(std::time(nullptr));
-  // TODO Add back command line interface
-  return GuiMain(argc, argv);
-}
+int GuiMain(const int argc, const char* const argv[]);
+
+}  // namespace tl
+
+#endif  // TROLLAUNCHER_GUI_HPP_
