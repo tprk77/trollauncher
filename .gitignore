@@ -1,5 +1,6 @@
 # .gitignore
 
 /build/
+/rbuild/
 /subprojects/packagecache/
 /subprojects/nlohmann_json-3.7.0/
