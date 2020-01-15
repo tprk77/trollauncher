@@ -87,6 +87,12 @@ std::string TrollauncherCategory::message(int error) const
   else if (error == static_cast<int>(Error::MODPACK_ZIP_OPEN_FAILED)) {
     return "Failed to open modpack zip file";
   }
+  else if (error == static_cast<int>(Error::MODPACK_PREP_INSTALL_TEMPDIR_FAILED)) {
+    return "Failed to create temporary directory while preparing for modpack install";
+  }
+  else if (error == static_cast<int>(Error::MODPACK_PREP_INSTALL_UNZIP_FAILED)) {
+    return "Failed to unzip while preparing for modpack install";
+  }
   else if (error == static_cast<int>(Error::MODPACK_DESTINATION_CREATION_FAILED)) {
     return "Failed to create directory for modpack install destination";
   }

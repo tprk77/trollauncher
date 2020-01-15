@@ -20,9 +20,14 @@
 
 #include <cstdlib>
 
+#include <boost/filesystem.hpp>
+
 namespace tl {
 
 namespace {
+
+namespace fs = std::filesystem;
+namespace bfs = boost::filesystem;
 
 static const std::vector<char> alpha_numerics = {
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
@@ -272,6 +277,33 @@ std::optional<std::string> GetEnvironmentVar(const std::string& name)
     return std::nullopt;
   }
   return var_ptr;
+}
+
+std::optional<std::filesystem::path> CreateTempDir()
+{
+  // Ok, so this sucks because we can't use "mkdtemp" due to that not existing on MinGW, etc. And
+  // using "tmpnam" also sucks because it's obsolete. So I guess we will just use Boost.
+  std::error_code fs_ec;
+  const fs::path temp_path = fs::temp_directory_path(fs_ec);
+  if (fs_ec) {
+    return std::nullopt;
+  }
+  boost::system::error_code bfs_ec;
+  const bfs::path unique_bpath = bfs::unique_path("TL-%%%%-%%%%-%%%%-%%%%", bfs_ec);
+  if (bfs_ec) {
+    return std::nullopt;
+  }
+  const fs::path unique_path = unique_bpath.string();
+  const fs::path dest_path = temp_path / unique_path;
+  fs::create_directories(dest_path, fs_ec);
+  if (fs_ec) {
+    return std::nullopt;
+  }
+  fs::permissions(dest_path, fs::perms::owner_all, fs_ec);
+  if (fs_ec) {
+    return std::nullopt;
+  }
+  return dest_path;
 }
 
 std::string GetRandomId()

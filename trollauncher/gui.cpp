@@ -133,10 +133,16 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
   }
   mi_ptr_->SetName(data.profile_name);
   mi_ptr_->SetIcon(data.profile_icon);
-  // TODO For now, just always do this...
-  GuiDialogForgePromo forge_dialog(this);
-  if (forge_dialog.ShowModal() != wxID_OK) {
+  if (!mi_ptr_->PrepInstall(&ec)) {
+    const auto text = wxString::Format("Cannot prepare installer!\n\n%s.", ec.message());
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
+  }
+  if (!mi_ptr_->IsForgeInstalled().value()) {
+    GuiDialogForgePromo forge_dialog(this);
+    if (forge_dialog.ShowModal() != wxID_OK) {
+      return;
+    }
   }
   if (!mi_ptr_->Install(&ec)) {
     const auto text = wxString::Format("Cannot install modpack!\n\n%s.", ec.message());

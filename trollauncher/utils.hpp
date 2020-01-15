@@ -19,6 +19,7 @@
 #ifndef TROLLAUNCHER_UTILS_HPP_
 #define TROLLAUNCHER_UTILS_HPP_
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@ namespace tl {
 // decided to make "GetEnvironmentVariable" a macro for "GetEnvironmentVariableA". Yikes.
 
 std::optional<std::string> GetEnvironmentVar(const std::string& name);
+std::optional<std::filesystem::path> CreateTempDir();
 std::string GetRandomId();
 std::string GetRandomName();
 std::vector<std::string> GetDefaultLauncherIcons();

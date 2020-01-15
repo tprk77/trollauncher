@@ -20,7 +20,6 @@
 
 #include <fstream>
 #include <numeric>
-#include <optional>
 
 #include <libzippp.h>
 #include <nlohmann/json.hpp>
@@ -50,6 +49,10 @@ namespace zpp = libzippp;
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr);
+fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path);
+bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
+                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path,
+                std::error_code* ec);
 bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
                 const std::optional<fs::path>& strip_prefix_opt, std::error_code* ec);
 
@@ -64,6 +67,8 @@ struct ModpackInstaller::Data_ {
   std::string icon;
   fs::path install_path;
   std::unique_ptr<zpp::ZipArchive> zip_ptr;
+  bool is_prepped;
+  ForgeInstaller::Ptr fi_ptr;
 };
 
 ModpackInstaller::ModpackInstaller() : data_(std::make_unique<ModpackInstaller::Data_>())
@@ -114,6 +119,8 @@ ModpackInstaller::Ptr ModpackInstaller::Create(const std::filesystem::path& modp
   mi_ptr->data_->icon = "TNT";
   mi_ptr->data_->install_path = GetDefaultInstallPath(dot_minecraft_path, mi_ptr->data_->id);
   mi_ptr->data_->zip_ptr = std::move(zip_ptr);
+  mi_ptr->data_->is_prepped = false;
+  mi_ptr->data_->fi_ptr = nullptr;
   return mi_ptr;
 }
 
@@ -147,6 +154,39 @@ void ModpackInstaller::SetInstallPath(const std::filesystem::path& install_path)
   data_->install_path = install_path;
 }
 
+bool ModpackInstaller::PrepInstall(std::error_code* ec)
+{
+  std::optional<fs::path> temp_path_opt = CreateTempDir();
+  if (!temp_path_opt) {
+    SetError(ec, Error::MODPACK_PREP_INSTALL_TEMPDIR_FAILED);
+    return false;
+  }
+  const fs::path& temp_path = temp_path_opt.value();
+  const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
+  std::error_code temp_ec;
+  if (!ExtractOne(temp_path, data_->zip_ptr.get(), tl_dir_opt, "trollauncher/installer.jar",
+                  &temp_ec)) {
+    SetError(ec, Error::MODPACK_PREP_INSTALL_UNZIP_FAILED);
+    return false;
+  }
+  const fs::path forge_installer_path = temp_path / "trollauncher" / "installer.jar";
+  auto fi_ptr = ForgeInstaller::Create(forge_installer_path, data_->dot_minecraft_path, ec);
+  if (fi_ptr == nullptr) {
+    return false;
+  }
+  data_->fi_ptr = std::move(fi_ptr);
+  data_->is_prepped = true;
+  return true;
+}
+
+std::optional<bool> ModpackInstaller::IsForgeInstalled()
+{
+  if (!data_->is_prepped) {
+    return std::nullopt;
+  }
+  return data_->fi_ptr->IsInstalled();
+}
+
 bool ModpackInstaller::Install(std::error_code* ec)
 {
   std::error_code fs_ec;
@@ -166,26 +206,28 @@ bool ModpackInstaller::Install(std::error_code* ec)
     SetError(ec, Error::MODPACK_DESTINATION_NOT_EMPTY);
     return false;
   }
-  const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  if (!ExtractAll(data_->install_path, data_->zip_ptr.get(), tl_dir_opt, ec)) {
+  // Step 0: Prep install
+  if (!data_->is_prepped && !PrepInstall(ec)) {
     return false;
   }
-  // TODO The forge install should probably be optional? But then where to get the version?
-  const fs::path forge_installer_path = data_->install_path / "trollauncher" / "installer.jar";
-  auto fi_ptr = ForgeInstaller::Create(forge_installer_path, data_->dot_minecraft_path, ec);
-  if (fi_ptr == nullptr) {
-    return false;
-  }
-  if (!fi_ptr->IsInstalled()) {
-    if (!fi_ptr->Install(ec)) {
+  // Step 1: Install Forge
+  if (!data_->fi_ptr->IsInstalled()) {
+    if (!data_->fi_ptr->Install(ec)) {
       return false;
     }
     if (!data_->lpe_ptr->PatchForgeProfile(ec)) {
       return false;
     }
   }
+  // Step 2: Extract modpack
+  const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
+  if (!ExtractAll(data_->install_path, data_->zip_ptr.get(), tl_dir_opt, ec)) {
+    return false;
+  }
+  // Step 3: Write profile
+  const std::string forge_version = data_->fi_ptr->GetForgeVersion();
   const std::optional<fs::path> java_path_opt = JavaDetector::GetJavaVersion8();
-  if (!data_->lpe_ptr->WriteProfile(data_->id, data_->name, data_->icon, fi_ptr->GetForgeVersion(),
+  if (!data_->lpe_ptr->WriteProfile(data_->id, data_->name, data_->icon, forge_version,
                                     data_->install_path, java_path_opt, ec)) {
     return false;
   }
@@ -258,6 +300,44 @@ fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path)
       std::accumulate(std::next(orig_path.begin(), prefix_length), orig_path.end(), fs::path(),
                       [](const auto& p, const auto& r) { return p / r; });
   return orig_remainder_path;
+}
+
+bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
+                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path,
+                std::error_code* ec)
+{
+  std::error_code fs_ec;
+  const fs::path complete_path =
+      (add_prefix_opt ? add_prefix_opt.value() / entry_path : entry_path);
+  zpp::ZipEntry zip_entry = zip_ptr->getEntry(complete_path.generic_string());
+  if (!zip_entry.isFile()) {
+    SetError(ec, Error::MODPACK_UNZIP_FAILED);
+    return false;
+  }
+  const fs::path dest_path = install_path / entry_path;
+  // Create the parent directory if we need to
+  const fs::path dest_parent_path = dest_path.parent_path();
+  if (!fs::exists(dest_parent_path)) {
+    fs::create_directories(dest_parent_path, fs_ec);
+    if (fs_ec) {
+      SetError(ec, Error::MODPACK_UNZIP_FAILED);
+      return false;
+    }
+  }
+  // Create the actual file
+  const std::ios_base::openmode ofs_flags =
+      std::ios_base::binary | std::ios_base::out | std::ios_base::trunc;
+  std::ofstream file_ofs(dest_path, ofs_flags);
+  if (!file_ofs.good()) {
+    SetError(ec, Error::MODPACK_UNZIP_FAILED);
+    return false;
+  }
+  const int zip_error_code = zip_ptr->readEntry(zip_entry, file_ofs);
+  if (zip_error_code != LIBZIPPP_OK) {
+    SetError(ec, Error::MODPACK_UNZIP_FAILED);
+    return false;
+  }
+  return true;
 }
 
 bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,

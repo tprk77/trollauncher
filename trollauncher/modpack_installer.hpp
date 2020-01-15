@@ -21,6 +21,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <system_error>
 
 namespace tl {
@@ -41,6 +42,9 @@ class ModpackInstaller final {
 
   std::filesystem::path GetInstallPath() const;
   void SetInstallPath(const std::filesystem::path& install_path);
+
+  bool PrepInstall(std::error_code* ec);
+  std::optional<bool> IsForgeInstalled();
 
   bool Install(std::error_code* ec);
 
