@@ -21,6 +21,8 @@
 #include <functional>
 
 #include <wx/filepicker.h>
+#include <wx/mimetype.h>
+#include <wx/utils.h>
 #include <wx/wx.h>
 
 #include "trollauncher/modpack_installer.hpp"
@@ -68,6 +70,23 @@ class GuiPanelModpackInstall : public wxPanel {
 
 constexpr int ID_DO_MODPACK_INSTALL = 1;
 
+class GuiDialogForgePromo : public wxDialog {
+ public:
+  GuiDialogForgePromo(wxWindow* parent);
+
+  void OnGotoForgeSite(wxCommandEvent& event);
+  void OnGotoForgePatreon(wxCommandEvent& event);
+
+ private:
+  static constexpr const char* FORGE_SITE_URL = "https://files.minecraftforge.net";
+  static constexpr const char* FORGE_PATREON_URL = "https://www.patreon.com/LexManos";
+};
+
+constexpr int ID_GOTO_FORGE_SITE = 1;
+constexpr int ID_GOTO_FORGE_PATREON = 2;
+
+void OpenUrlInBrowser(const char* const url);
+
 bool GuiApp::OnInit()
 {
   wxFrame* frame_ptr = new GuiFrame();
@@ -114,6 +133,11 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
   }
   mi_ptr_->SetName(data.profile_name);
   mi_ptr_->SetIcon(data.profile_icon);
+  // TODO For now, just always do this...
+  GuiDialogForgePromo forge_dialog(this);
+  if (forge_dialog.ShowModal() != wxID_OK) {
+    return;
+  }
   if (!mi_ptr_->Install(&ec)) {
     const auto text = wxString::Format("Cannot install modpack!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
@@ -170,6 +194,64 @@ ModpackInstallData GuiPanelModpackInstall::GetData() const
       name_textbox_ptr_->GetValue().Strip(wxString::both).ToStdString(),
       icon_choice_ptr_->GetString(icon_choice_ptr_->GetSelection()).ToStdString(),
   };
+}
+
+GuiDialogForgePromo::GuiDialogForgePromo(wxWindow* parent) : wxDialog(parent, wxID_ANY, "Forge")
+{
+  constexpr int MIN_CONTOL_WIDTH = 300;
+  constexpr int BORDER_WIDTH = 10;
+  wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(1);
+  wxStaticText* header_text_ptr =
+      new wxStaticText(this, wxID_ANY, "\nThis Modpack depends on Forge!");
+  header_text_ptr->SetFont(header_text_ptr->GetFont().Bold());
+  wxStaticText* body_text_ptr =
+      new wxStaticText(this, wxID_ANY,
+                       "Forge is supported by ads and donations.\n\nPlease consider helping Forge "
+                       "by visiting the\nwebsite, or by donating to Lex's Patreon.\n");
+  wxButton* site_button_ptr = new wxButton(this, ID_GOTO_FORGE_SITE, "Visit Forge's Website");
+  site_button_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, 2 * site_button_ptr->GetSize().GetHeight()));
+  wxButton* patreon_button_ptr = new wxButton(this, ID_GOTO_FORGE_PATREON, "Visit Lex's Patreon");
+  patreon_button_ptr->SetMinSize(
+      wxSize(MIN_CONTOL_WIDTH, 2 * patreon_button_ptr->GetSize().GetHeight()));
+  wxButton* ok_button_ptr = new wxButton(this, wxID_OK);
+  ok_button_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, 2 * ok_button_ptr->GetSize().GetHeight()));
+  const auto text_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
+  const auto border_flags = wxSizerFlags().Border(wxALL, BORDER_WIDTH);
+  grid_ptr->Add(header_text_ptr, text_flags);
+  grid_ptr->Add(body_text_ptr, text_flags);
+  grid_ptr->Add(site_button_ptr, border_flags);
+  grid_ptr->Add(patreon_button_ptr, border_flags);
+  grid_ptr->Add(ok_button_ptr, border_flags);
+  wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
+  padder_ptr->Add(grid_ptr, border_flags);
+  SetSizerAndFit(padder_ptr);
+  // Lock down resizing
+  SetMinSize(GetSize());
+  SetMaxSize(GetSize());
+  // Connect everything up
+  Bind(wxEVT_BUTTON, &GuiDialogForgePromo::OnGotoForgeSite, this, ID_GOTO_FORGE_SITE);
+  Bind(wxEVT_BUTTON, &GuiDialogForgePromo::OnGotoForgePatreon, this, ID_GOTO_FORGE_PATREON);
+  // Cancel on close, etc
+  SetEscapeId(wxID_CANCEL);
+}
+
+void GuiDialogForgePromo::OnGotoForgeSite(wxCommandEvent&)
+{
+  OpenUrlInBrowser(FORGE_SITE_URL);
+}
+
+void GuiDialogForgePromo::OnGotoForgePatreon(wxCommandEvent&)
+{
+  OpenUrlInBrowser(FORGE_PATREON_URL);
+}
+
+void OpenUrlInBrowser(const char* const url)
+{
+  wxMimeTypesManager mime_types_manager;
+  wxFileType* file_type_ptr = mime_types_manager.GetFileTypeFromExtension("html");
+  wxString command = file_type_ptr->GetOpenCommand(url);
+  delete file_type_ptr;
+  wxExecute(command);
 }
 
 wxIMPLEMENT_WX_THEME_SUPPORT;
