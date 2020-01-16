@@ -85,6 +85,11 @@ class GuiDialogForgePromo : public wxDialog {
 constexpr int ID_GOTO_FORGE_SITE = 1;
 constexpr int ID_GOTO_FORGE_PATREON = 2;
 
+class GuiDialogForgeNotice : public wxDialog {
+ public:
+  GuiDialogForgeNotice(wxWindow* parent);
+};
+
 void OpenUrlInBrowser(const char* const url);
 
 bool GuiApp::OnInit()
@@ -138,9 +143,13 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
+  GuiDialogForgePromo forge_promo_dialog(this);
+  if (forge_promo_dialog.ShowModal() != wxID_OK) {
+    return;
+  }
   if (!mi_ptr_->IsForgeInstalled().value()) {
-    GuiDialogForgePromo forge_dialog(this);
-    if (forge_dialog.ShowModal() != wxID_OK) {
+    GuiDialogForgeNotice forge_notice_dialog(this);
+    if (forge_notice_dialog.ShowModal() != wxID_OK) {
       return;
     }
   }
@@ -221,10 +230,9 @@ GuiDialogForgePromo::GuiDialogForgePromo(wxWindow* parent) : wxDialog(parent, wx
       wxSize(MIN_CONTOL_WIDTH, 2 * patreon_button_ptr->GetSize().GetHeight()));
   wxButton* ok_button_ptr = new wxButton(this, wxID_OK);
   ok_button_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, 2 * ok_button_ptr->GetSize().GetHeight()));
-  const auto text_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
-  const auto border_flags = wxSizerFlags().Border(wxALL, BORDER_WIDTH);
-  grid_ptr->Add(header_text_ptr, text_flags);
-  grid_ptr->Add(body_text_ptr, text_flags);
+  const auto border_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
+  grid_ptr->Add(header_text_ptr, border_flags);
+  grid_ptr->Add(body_text_ptr, border_flags);
   grid_ptr->Add(site_button_ptr, border_flags);
   grid_ptr->Add(patreon_button_ptr, border_flags);
   grid_ptr->Add(ok_button_ptr, border_flags);
@@ -249,6 +257,42 @@ void GuiDialogForgePromo::OnGotoForgeSite(wxCommandEvent&)
 void GuiDialogForgePromo::OnGotoForgePatreon(wxCommandEvent&)
 {
   OpenUrlInBrowser(FORGE_PATREON_URL);
+}
+
+GuiDialogForgeNotice::GuiDialogForgeNotice(wxWindow* parent) : wxDialog(parent, wxID_ANY, "Forge")
+{
+  constexpr int MIN_CONTOL_WIDTH = 300;
+  constexpr int BORDER_WIDTH = 10;
+  wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(1);
+  wxStaticText* header_text_ptr =
+      new wxStaticText(this, wxID_ANY, "\nThe Forge Installer is about to run!");
+  header_text_ptr->SetFont(header_text_ptr->GetFont().Bold());
+  wxStaticText* body_text_ptr = new wxStaticText(
+      this, wxID_ANY,
+      "The Forge Installer is not currently automated.\nThis process must be completed "
+      "manually.\nDon't worry, it's easy.\n");
+  wxStaticText* steps_text_ptr =
+      new wxStaticText(this, wxID_ANY, "Step 1:\tSelect \"Install client\"\n\nStep 2:\tPress OK\n");
+  steps_text_ptr->SetFont(steps_text_ptr->GetFont().Bold());
+  const wxSize orig_size = steps_text_ptr->GetSize();
+  // This apparently fixes a weird alignment issue on Windows
+  steps_text_ptr->SetMinSize(
+      wxSize(static_cast<int>(1.1 * orig_size.GetWidth()), orig_size.GetHeight()));
+  wxButton* ok_button_ptr = new wxButton(this, wxID_OK, "Continue");
+  ok_button_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, 2 * ok_button_ptr->GetSize().GetHeight()));
+  const auto border_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
+  grid_ptr->Add(header_text_ptr, border_flags);
+  grid_ptr->Add(body_text_ptr, border_flags);
+  grid_ptr->Add(steps_text_ptr, border_flags);
+  grid_ptr->Add(ok_button_ptr, border_flags);
+  wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
+  padder_ptr->Add(grid_ptr, border_flags);
+  SetSizerAndFit(padder_ptr);
+  // Lock down resizing
+  SetMinSize(GetSize());
+  SetMaxSize(GetSize());
+  // Cancel on close, etc
+  SetEscapeId(wxID_CANCEL);
 }
 
 void OpenUrlInBrowser(const char* const url)
