@@ -159,7 +159,7 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
     return;
   }
   const auto text = wxString::Format("Modpack installed successfully.", ec.message());
-  wxMessageBox(text, "Error", wxOK, this);
+  wxMessageBox(text, "Success", wxOK, this);
   Close();
 }
 
