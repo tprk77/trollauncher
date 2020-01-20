@@ -55,11 +55,12 @@ std::vector<fs::path> GetPrefixedPaths(const std::vector<fs::path>& prefix_paths
 std::optional<std::string> GetJavaVersion(const fs::path& java_path);
 bool CheckJavaVersion(const fs::path& java_path,
                       const std::optional<std::regex>& version_regex_opt);
+std::optional<fs::path> FindBundledJava(const std::vector<fs::path>& program_files_paths,
+                                        const std::optional<std::regex>& version_regex_opt);
 std::optional<fs::path> FindLinuxJava(const std::optional<std::regex>& version_regex_opt);
 std::optional<fs::path> FindWindowsJava(const std::vector<fs::path>& program_files_paths,
                                         const std::optional<std::regex>& version_regex_opt);
-std::optional<fs::path> FindBundledJava(const std::vector<fs::path>& program_files_paths,
-                                        const std::optional<std::regex>& version_regex_opt);
+std::optional<fs::path> FindPathedJava(const std::optional<std::regex>& version_regex_opt);
 std::optional<fs::path> FindJava(const std::optional<std::regex>& version_regex_opt);
 
 }  // namespace
@@ -149,6 +150,24 @@ bool CheckJavaVersion(const fs::path& java_path, const std::optional<std::regex>
   return true;
 }
 
+std::optional<fs::path> FindBundledJava(const std::vector<fs::path>& program_files_paths,
+                                        const std::optional<std::regex>& version_regex_opt)
+{
+  if (ITS_A_UNIX_SYSTEM) {
+    return std::nullopt;
+  }
+  // Example Java path:
+  // C:\Program Files (x86)\Minecraft Launcher\runtime\jre-x64\bin\javaw.exe
+  const std::vector<fs::path> bundled_java_paths =
+      GetPrefixedPaths(program_files_paths, "Minecraft Launcher\\runtime\\jre-x64\\bin\\javaw.exe");
+  for (const fs::path& java_path : bundled_java_paths) {
+    if (CheckJavaVersion(java_path, version_regex_opt)) {
+      return java_path;
+    }
+  }
+  return std::nullopt;
+}
+
 std::optional<fs::path> FindLinuxJava(const std::optional<std::regex>& version_regex_opt)
 {
   if (!ITS_A_UNIX_SYSTEM) {
@@ -195,20 +214,12 @@ std::optional<fs::path> FindWindowsJava(const std::vector<fs::path>& program_fil
   return std::nullopt;
 }
 
-std::optional<fs::path> FindBundledJava(const std::vector<fs::path>& program_files_paths,
-                                        const std::optional<std::regex>& version_regex_opt)
+std::optional<fs::path> FindPathedJava(const std::optional<std::regex>& version_regex_opt)
 {
-  if (ITS_A_UNIX_SYSTEM) {
-    return std::nullopt;
-  }
-  // Example Java path:
-  // C:\Program Files (x86)\Minecraft Launcher\runtime\jre-x64\bin\javaw.exe
-  const std::vector<fs::path> bundled_java_paths =
-      GetPrefixedPaths(program_files_paths, "Minecraft Launcher\\runtime\\jre-x64\\bin\\javaw.exe");
-  for (const fs::path& java_path : bundled_java_paths) {
-    if (CheckJavaVersion(java_path, version_regex_opt)) {
-      return java_path;
-    }
+  const std::string java_command = (ITS_A_UNIX_SYSTEM ? "java" : "javaw");
+  const fs::path path_java_path = bp::search_path(java_command).string();
+  if (CheckJavaVersion(path_java_path, version_regex_opt)) {
+    return path_java_path;
   }
   return std::nullopt;
 }
@@ -221,15 +232,15 @@ std::optional<fs::path> FindJava(const std::optional<std::regex>& version_regex_
   if (launcher_java_path_opt) {
     return launcher_java_path_opt;
   }
-  const fs::path path_java_path = bp::search_path("java").string();
-  if (CheckJavaVersion(path_java_path, version_regex_opt)) {
-    return path_java_path;
+  const std::optional<fs::path> os_java_path_opt =
+      (ITS_A_UNIX_SYSTEM ? FindLinuxJava(version_regex_opt)
+                         : FindWindowsJava(program_files_paths, version_regex_opt));
+  if (os_java_path_opt) {
+    return os_java_path_opt;
   }
-  if (ITS_A_UNIX_SYSTEM) {
-    return FindLinuxJava(version_regex_opt);
-  }
-  else {
-    return FindWindowsJava(program_files_paths, version_regex_opt);
+  const std::optional<fs::path> pathed_java_path_opt = FindPathedJava(version_regex_opt);
+  if (pathed_java_path_opt) {
+    return pathed_java_path_opt;
   }
   return std::nullopt;
 }
