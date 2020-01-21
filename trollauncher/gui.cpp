@@ -167,6 +167,11 @@ GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(paren
 {
   constexpr int MIN_CONTOL_WIDTH = 300;
   constexpr int BORDER_WIDTH = 10;
+  wxStaticText* info_text_ptr = new wxStaticText(
+      this, wxID_ANY,
+      "Use this utility to install modpack zips\nto the Vanilla Minecraft Launcher.\n\n"
+      "(The install location will be a subdirectory\nof the usual '.minecraft' directory.)\n");
+  info_text_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, info_text_ptr->GetSize().GetHeight()));
   wxStaticText* path_text_ptr = new wxStaticText(this, wxID_ANY, "Modpack Zip");
   wxStaticText* name_text_ptr = new wxStaticText(this, wxID_ANY, "Profile Name");
   wxStaticText* icon_text_ptr = new wxStaticText(this, wxID_ANY, "Profile Icon");
@@ -189,6 +194,8 @@ GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(paren
   wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(2);
   const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
   const auto border_flags = wxSizerFlags().Border(wxALL, BORDER_WIDTH);
+  grid_ptr->Add(1, 1);
+  grid_ptr->Add(info_text_ptr, text_flags);
   grid_ptr->Add(path_text_ptr, text_flags);
   grid_ptr->Add(path_picker_ptr_, border_flags);
   grid_ptr->Add(name_text_ptr, text_flags);
