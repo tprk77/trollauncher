@@ -51,7 +51,7 @@ namespace fs = std::filesystem;
 
 std::vector<fs::path> GetProgramFilesPaths();
 std::vector<fs::path> GetPrefixedPaths(const std::vector<fs::path>& prefix_paths,
-                                       const fs::path& relative_path);
+                                       const std::vector<fs::path>& relative_paths);
 std::optional<std::string> GetJavaVersion(const fs::path& java_path);
 bool CheckJavaVersion(const fs::path& java_path,
                       const std::optional<std::regex>& version_regex_opt);
@@ -99,11 +99,13 @@ std::vector<fs::path> GetProgramFilesPaths()
 }
 
 std::vector<fs::path> GetPrefixedPaths(const std::vector<fs::path>& prefix_paths,
-                                       const fs::path& relative_path)
+                                       const std::vector<fs::path>& relative_paths)
 {
   std::vector<fs::path> full_paths;
   for (const auto& prefix_path : prefix_paths) {
-    full_paths.push_back(prefix_path / relative_path);
+    for (const auto& relative_path : relative_paths) {
+      full_paths.push_back(prefix_path / relative_path);
+    }
   }
   return full_paths;
 }
@@ -158,8 +160,10 @@ std::optional<fs::path> FindBundledJava(const std::vector<fs::path>& program_fil
   }
   // Example Java path:
   // C:\Program Files (x86)\Minecraft Launcher\runtime\jre-x64\bin\javaw.exe
+  const std::vector<fs::path> minecraft_paths =
+      GetPrefixedPaths(program_files_paths, {"Minecraft Launcher", "Minecraft"});
   const std::vector<fs::path> bundled_java_paths =
-      GetPrefixedPaths(program_files_paths, "Minecraft Launcher\\runtime\\jre-x64\\bin\\javaw.exe");
+      GetPrefixedPaths(minecraft_paths, {"runtime\\jre-x64\\bin\\javaw.exe"});
   for (const fs::path& java_path : bundled_java_paths) {
     if (CheckJavaVersion(java_path, version_regex_opt)) {
       return java_path;
@@ -198,7 +202,7 @@ std::optional<fs::path> FindWindowsJava(const std::vector<fs::path>& program_fil
   }
   // Example Java path:
   // C:\Program Files\Java\jre1.8.0_231\bin\javaw.exe
-  const std::vector<fs::path> java_root_paths = GetPrefixedPaths(program_files_paths, "Java");
+  const std::vector<fs::path> java_root_paths = GetPrefixedPaths(program_files_paths, {"Java"});
   for (const auto& java_root_path : java_root_paths) {
     std::error_code fs_ec;
     for (const fs::path& java_dir_path : fs::directory_iterator(java_root_path, fs_ec)) {
