@@ -191,21 +191,26 @@ GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(paren
   wxButton* install_button_ptr = new wxButton(this, ID_DO_MODPACK_INSTALL, "Install Modpack");
   install_button_ptr->SetMinSize(
       wxSize(MIN_CONTOL_WIDTH, 2 * install_button_ptr->GetSize().GetHeight()));
-  wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(2);
-  const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
   const auto border_flags = wxSizerFlags().Border(wxALL, BORDER_WIDTH);
-  grid_ptr->Add(1, 1);
-  grid_ptr->Add(info_text_ptr, text_flags);
-  grid_ptr->Add(path_text_ptr, text_flags);
-  grid_ptr->Add(path_picker_ptr_, border_flags);
-  grid_ptr->Add(name_text_ptr, text_flags);
-  grid_ptr->Add(name_textbox_ptr_, border_flags);
-  grid_ptr->Add(icon_text_ptr, text_flags);
-  grid_ptr->Add(icon_choice_ptr_, border_flags);
-  grid_ptr->Add(1, 1);
-  grid_ptr->Add(install_button_ptr, border_flags);
+  const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
+  wxFlexGridSizer* info_grid_ptr = new wxFlexGridSizer(1);
+  info_grid_ptr->Add(info_text_ptr, border_flags);
+  wxFlexGridSizer* field_grid_ptr = new wxFlexGridSizer(2);
+  field_grid_ptr->Add(path_text_ptr, text_flags);
+  field_grid_ptr->Add(path_picker_ptr_, border_flags);
+  field_grid_ptr->Add(name_text_ptr, text_flags);
+  field_grid_ptr->Add(name_textbox_ptr_, border_flags);
+  field_grid_ptr->Add(icon_text_ptr, text_flags);
+  field_grid_ptr->Add(icon_choice_ptr_, border_flags);
+  wxFlexGridSizer* button_grid_ptr = new wxFlexGridSizer(2);
+  button_grid_ptr->Add(install_button_ptr, border_flags);
   wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
-  padder_ptr->Add(grid_ptr, border_flags);
+  const auto top_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT|wxTOP, BORDER_WIDTH);
+  const auto middle_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT, BORDER_WIDTH);
+  const auto bottom_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT|wxBOTTOM, BORDER_WIDTH);
+  padder_ptr->Add(info_grid_ptr, top_flags);
+  padder_ptr->Add(field_grid_ptr, middle_flags);
+  padder_ptr->Add(button_grid_ptr, bottom_flags);
   SetSizer(padder_ptr);
 }
 
