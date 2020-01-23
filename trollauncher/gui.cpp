@@ -165,23 +165,19 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
 
 GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(parent)
 {
-  constexpr int MIN_CONTOL_WIDTH = 300;
   constexpr int BORDER_WIDTH = 10;
+  wxStaticText* header_text_ptr = new wxStaticText(
+      this, wxID_ANY, "Use this utility to create Minecraft Launcher profiles for modpacks.");
+  header_text_ptr->SetFont(header_text_ptr->GetFont().Bold());
   wxStaticText* info_text_ptr = new wxStaticText(
-      this, wxID_ANY,
-      "Use this utility to install modpack zips\nto the Vanilla Minecraft Launcher.\n\n"
-      "(The install location will be a subdirectory\nof the usual '.minecraft' directory.)\n");
-  info_text_ptr->SetMinSize(wxSize(MIN_CONTOL_WIDTH, info_text_ptr->GetSize().GetHeight()));
+      this, wxID_ANY, "The new profile will be installed under the '.minecraft' directory.\n");
   wxStaticText* path_text_ptr = new wxStaticText(this, wxID_ANY, "Modpack Zip");
   wxStaticText* name_text_ptr = new wxStaticText(this, wxID_ANY, "Profile Name");
   wxStaticText* icon_text_ptr = new wxStaticText(this, wxID_ANY, "Profile Icon");
   path_picker_ptr_ = new wxFilePickerCtrl(this, wxID_ANY);
-  path_picker_ptr_->SetMinSize(wxSize(MIN_CONTOL_WIDTH, path_picker_ptr_->GetSize().GetHeight()));
   // TODO Populate name with default unique name?
   name_textbox_ptr_ = new wxTextCtrl(this, wxID_ANY);
-  name_textbox_ptr_->SetMinSize(wxSize(MIN_CONTOL_WIDTH, name_textbox_ptr_->GetSize().GetHeight()));
   icon_choice_ptr_ = new wxChoice(this, wxID_ANY);
-  icon_choice_ptr_->SetMinSize(wxSize(MIN_CONTOL_WIDTH, icon_choice_ptr_->GetSize().GetHeight()));
   const std::vector<std::string> icons = GetDefaultLauncherIcons();
   const int random_index = std::rand() % icons.size();
   for (const auto& icon : icons) {
@@ -189,27 +185,31 @@ GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(paren
   }
   icon_choice_ptr_->Select(random_index);
   wxButton* install_button_ptr = new wxButton(this, ID_DO_MODPACK_INSTALL, "Install Modpack");
-  install_button_ptr->SetMinSize(
-      wxSize(MIN_CONTOL_WIDTH, 2 * install_button_ptr->GetSize().GetHeight()));
-  const auto border_flags = wxSizerFlags().Border(wxALL, BORDER_WIDTH);
+  // Make the button double the height
+  install_button_ptr->SetMinSize(wxSize(100, 2 * install_button_ptr->GetSize().GetHeight()));
+  const auto header_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
   const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
+  const auto control_flags = wxSizerFlags().Expand().Border(wxALL, BORDER_WIDTH);
   wxFlexGridSizer* info_grid_ptr = new wxFlexGridSizer(1);
-  info_grid_ptr->Add(info_text_ptr, border_flags);
+  info_grid_ptr->AddGrowableCol(0);
+  info_grid_ptr->Add(header_text_ptr, header_flags);
+  info_grid_ptr->Add(info_text_ptr, header_flags);
   wxFlexGridSizer* field_grid_ptr = new wxFlexGridSizer(2);
+  field_grid_ptr->AddGrowableCol(1);
   field_grid_ptr->Add(path_text_ptr, text_flags);
-  field_grid_ptr->Add(path_picker_ptr_, border_flags);
+  field_grid_ptr->Add(path_picker_ptr_, control_flags);
   field_grid_ptr->Add(name_text_ptr, text_flags);
-  field_grid_ptr->Add(name_textbox_ptr_, border_flags);
+  field_grid_ptr->Add(name_textbox_ptr_, control_flags);
   field_grid_ptr->Add(icon_text_ptr, text_flags);
-  field_grid_ptr->Add(icon_choice_ptr_, border_flags);
-  wxFlexGridSizer* button_grid_ptr = new wxFlexGridSizer(2);
-  button_grid_ptr->Add(install_button_ptr, border_flags);
+  field_grid_ptr->Add(icon_choice_ptr_, control_flags);
+  wxFlexGridSizer* button_grid_ptr = new wxFlexGridSizer(1);
+  button_grid_ptr->AddGrowableCol(0);
+  button_grid_ptr->Add(install_button_ptr, control_flags);
   wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
-  const auto top_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT|wxTOP, BORDER_WIDTH);
-  const auto middle_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT, BORDER_WIDTH);
-  const auto bottom_flags = wxSizerFlags().Center().Border(wxLEFT|wxRIGHT|wxBOTTOM, BORDER_WIDTH);
+  const auto top_flags = wxSizerFlags().Expand().Border(wxALL & ~wxBOTTOM, BORDER_WIDTH);
+  const auto bottom_flags = wxSizerFlags().Expand().Border(wxALL & ~wxTOP, BORDER_WIDTH);
   padder_ptr->Add(info_grid_ptr, top_flags);
-  padder_ptr->Add(field_grid_ptr, middle_flags);
+  padder_ptr->Add(field_grid_ptr, bottom_flags);
   padder_ptr->Add(button_grid_ptr, bottom_flags);
   SetSizer(padder_ptr);
 }
