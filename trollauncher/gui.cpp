@@ -22,6 +22,7 @@
 
 #include <wx/filepicker.h>
 #include <wx/mimetype.h>
+#include <wx/mstream.h>
 #include <wx/utils.h>
 #include <wx/wx.h>
 
@@ -91,9 +92,11 @@ class GuiDialogForgeNotice : public wxDialog {
 };
 
 void OpenUrlInBrowser(const char* const url);
+const wxBitmap& GetTrollfaceIcon16x16();
 
 bool GuiApp::OnInit()
 {
+  wxImage::AddHandler(new wxPNGHandler());
   wxFrame* frame_ptr = new GuiFrame();
   frame_ptr->Show(true);
   return true;
@@ -110,6 +113,10 @@ GuiFrame::GuiFrame() : wxFrame(NULL, wxID_ANY, "Trollauncher")
   SetMaxSize(GetSize());
   // Connect everything up
   Bind(wxEVT_BUTTON, &GuiFrame::OnDoModpackInstall, this, ID_DO_MODPACK_INSTALL);
+  // Set the icon
+  wxIcon trollface_icon;
+  trollface_icon.CopyFromBitmap(GetTrollfaceIcon16x16());
+  SetIcon(trollface_icon);
   // Center the frame in the screen
   Center();
 }
@@ -314,6 +321,24 @@ void OpenUrlInBrowser(const char* const url)
   wxString command = file_type_ptr->GetOpenCommand(url);
   delete file_type_ptr;
   wxExecute(command);
+}
+
+const wxBitmap& GetTrollfaceIcon16x16()
+{
+  static wxMemoryInputStream trollface_mem(
+      "\211PNG\15\12\32\12\0\0\0\15IHDR\0\0\0\20\0\0\0\20\10\4\0\0\0\265\3727\352\0\0\0\2bKGD\0\377"
+      "\207\217\314\277\0\0\0\11pHYs\0\0\13\23\0\0\13\23\1\0\232\234\30\0\0\0\7tIME\7\344\1\31\0043"
+      ";\23\31\346Y\0\0\0\242IDAT(\317\205\221\273\15\2A\14\5\347I\33 *\201\230\353\6J!\244\37z "
+      "\366\306\224\363\10\354\333\273\3\4\226\354\265\326\343\217l\231\337\322fGo\244\265\1\344x"
+      "\313\224\23is\370^\201\33p\5\36\205\264\14\237\200'"
+      "p\4\340\0\354\211B\34N\301\230\225\27\306Fi "
+      "g\24\36\266\3\23\15:F\5\231\13p."
+      "\250\223\231U6\2524\243Yy9\305\362\231\272\313\227\6\226\34\325["
+      "\270t\263IK\206\31b5\364\330\244\225\313\16\226\215\367o'H("
+      "e\32i\37WX\237K\377\316\375\2\322\300v\243z\321\324\254\0\0\0\0IEND\256B`\202",
+      273);
+  static wxBitmap trollface_bitmap(wxImage(trollface_mem, wxBITMAP_TYPE_ANY), -1);
+  return trollface_bitmap;
 }
 
 wxIMPLEMENT_WX_THEME_SUPPORT;
