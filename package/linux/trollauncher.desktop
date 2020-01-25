@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Trollauncher
+Comment=Create Minecraft Launcher profiles for modpacks
+Exec=/usr/bin/trollauncher
+Terminal=false
+Type=Application
+Categories=Game;Application;
+Icon=trollface
