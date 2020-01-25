@@ -31,7 +31,7 @@ if build_machine.system() == 'windows'
     windows.compile_resources(
       'trollauncher/trollauncher.rc',
       # Unfortunately, this is hardcoded to MSYS2, and you may need to edit it
-      include_directories : include_directories('C:/msys64/mingw64/include/wx-3.0')
+      include_directories : include_directories('resource', 'C:/msys64/mingw64/include/wx-3.0')
     )
   ]
   msw_extra_deps = [meson.get_compiler('cpp').find_library('ws2_32')]
