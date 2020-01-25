@@ -16,6 +16,12 @@ project('trollauncher', 'cpp',
   ]
 )
 
+version = meson.project_version()
+version_array = version.split('.')
+major_version = version_array[0].to_int()
+minor_version = version_array[1].to_int()
+patch_version = version_array[2].to_int()
+
 ###################
 # Windows Options #
 ###################
@@ -27,9 +33,18 @@ wxwidgets_mods = []
 main_link_args = []
 if build_machine.system() == 'windows'
   windows = import('windows')
+  trollauncher_rc = configure_file(
+    input : 'resource/trollauncher.rc.in',
+    output : 'trollauncher.rc',
+    configuration : {
+      'MAJOR_VERSION' : major_version,
+      'MINOR_VERSION' : minor_version,
+      'PATCH_VERSION' : patch_version
+    }
+  )
   msw_extra_src = [
     windows.compile_resources(
-      'trollauncher/trollauncher.rc',
+      trollauncher_rc,
       # Unfortunately, this is hardcoded to MSYS2, and you may need to edit it
       include_directories : include_directories('resource', 'C:/msys64/mingw64/include/wx-3.0')
     )

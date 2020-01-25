@@ -18,9 +18,14 @@
 
 #include "windows.h"
 
+#define FILE_VERSION @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,0
+#define PROD_VERSION @MAJOR_VERSION@,@MINOR_VERSION@,@PATCH_VERSION@,0
+#define FILE_VERSION_STR "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0"
+#define PROD_VERSION_STR "@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.0"
+
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     0,1,0,0
-PRODUCTVERSION  0,1,0,0
+FILEVERSION     FILE_VERSION
+PRODUCTVERSION  PROD_VERSION
 FILEOS          VOS__WINDOWS32
 FILETYPE        VFT_APP
 BEGIN
@@ -32,10 +37,10 @@ BEGIN
             VALUE "Comments",          "Create Minecraft Launcher profiles for modpacks"
             VALUE "CompanyName",       "Tim Perkins"
             VALUE "FileDescription",   "Trollauncher"
-            VALUE "FileVersion",       "0.1.0.0"
+            VALUE "FileVersion",       FILE_VERSION_STR
             VALUE "LegalCopyright",    "Copyright (c) 2019 Tim Perkins"
             VALUE "ProductName",       "Trollauncher"
-            VALUE "ProductVersion",    "0.1.0.0"
+            VALUE "ProductVersion",    PROD_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"
