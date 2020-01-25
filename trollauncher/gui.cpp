@@ -341,8 +341,7 @@ const wxBitmap& GetTrollfaceIcon16x16()
   return trollface_bitmap;
 }
 
-wxIMPLEMENT_WX_THEME_SUPPORT;
-wxIMPLEMENT_APP_NO_MAIN(GuiApp);
+wxIMPLEMENT_WX_THEME_SUPPORT wxIMPLEMENT_APP_NO_MAIN(GuiApp);
 
 }  // namespace
 
