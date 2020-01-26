@@ -114,17 +114,17 @@ std::string TrollauncherCategory::message(int error) const
   else if (error == static_cast<int>(Error::FORGE_INSTALLER_JAR_OPEN_FAILED)) {
     return "Failed to open Forge installer jar file";
   }
-  else if (error == static_cast<int>(Error::FORGE_INSTALLER_NO_VERSION_JSON)) {
-    return "Forge installer jar file does not contain version.json";
+  else if (error == static_cast<int>(Error::FORGE_INSTALLER_NO_INSTALL_PROFILE_JSON)) {
+    return "Forge installer jar file does not contain install_profile.json";
   }
-  else if (error == static_cast<int>(Error::FORGE_INSTALLER_VERSION_JSON_READ_FAILED)) {
-    return "Failed to read version.json from the Forge installer jar file";
+  else if (error == static_cast<int>(Error::FORGE_INSTALLER_INSTALL_PROFILE_JSON_READ_FAILED)) {
+    return "Failed to read install_profile.json from the Forge installer jar file";
   }
-  else if (error == static_cast<int>(Error::FORGE_INSTALLER_VERSION_JSON_PARSE_FAILED)) {
-    return "Failed to parse version.json from the Forge installer jar file";
+  else if (error == static_cast<int>(Error::FORGE_INSTALLER_INSTALL_PROFILE_JSON_PARSE_FAILED)) {
+    return "Failed to parse install_profile.json from the Forge installer jar file";
   }
-  else if (error == static_cast<int>(Error::FORGE_INSTALLER_BAD_VERSION_JSON)) {
-    return "Bad contents in version.json from the Forge installer jar file";
+  else if (error == static_cast<int>(Error::FORGE_INSTALLER_BAD_INSTALL_PROFILE_JSON)) {
+    return "Bad contents in install_profile.json from the Forge installer jar file";
   }
   else if (error == static_cast<int>(Error::FORGE_INSTALLER_NO_JAVA)) {
     return "No Java to run the Forge installer";

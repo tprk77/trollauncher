@@ -78,26 +78,32 @@ ForgeInstaller::Ptr ForgeInstaller::Create(const fs::path& installer_path,
     SetError(ec, Error::FORGE_INSTALLER_JAR_OPEN_FAILED);
     return nullptr;
   }
-  zpp::ZipEntry version_entry = zip_ptr->getEntry("version.json", true);
-  if (version_entry.isNull()) {
-    SetError(ec, Error::FORGE_INSTALLER_NO_VERSION_JSON);
+  zpp::ZipEntry install_prof_entry = zip_ptr->getEntry("install_profile.json", true);
+  if (install_prof_entry.isNull()) {
+    SetError(ec, Error::FORGE_INSTALLER_NO_INSTALL_PROFILE_JSON);
     return nullptr;
   }
-  std::stringstream version_ss;
-  const int zip_error_code = zip_ptr->readEntry(version_entry, version_ss);
+  std::stringstream install_prof_ss;
+  const int zip_error_code = zip_ptr->readEntry(install_prof_entry, install_prof_ss);
   if (zip_error_code != LIBZIPPP_OK) {
-    SetError(ec, Error::FORGE_INSTALLER_VERSION_JSON_READ_FAILED);
+    SetError(ec, Error::FORGE_INSTALLER_INSTALL_PROFILE_JSON_READ_FAILED);
     return nullptr;
   }
-  nl::json version_json = nl::json::parse(version_ss.str(), nullptr, false);
-  if (version_json.is_discarded()) {
-    SetError(ec, Error::FORGE_INSTALLER_VERSION_JSON_PARSE_FAILED);
+  const nl::json install_prof_json = nl::json::parse(install_prof_ss.str(), nullptr, false);
+  if (install_prof_json.is_discarded()) {
+    SetError(ec, Error::FORGE_INSTALLER_INSTALL_PROFILE_JSON_PARSE_FAILED);
     return nullptr;
   }
-  const std::string forge_version = version_json.value("id", "");
-  const std::string minecraft_version = version_json.value("inheritsFrom", "");
+  const nl::json install_json = install_prof_json.value("install", nl::json(nullptr));
+  const bool new_forge_format = install_json.is_null();
+  const std::string forge_version =  //
+      (new_forge_format ? install_prof_json.value("version", "")
+                        : install_json.value("target", ""));
+  const std::string minecraft_version =  //
+      (new_forge_format ? install_prof_json.value("minecraft", "")
+                        : install_json.value("minecraft", ""));
   if (forge_version.empty() || minecraft_version.empty()) {
-    SetError(ec, Error::FORGE_INSTALLER_BAD_VERSION_JSON);
+    SetError(ec, Error::FORGE_INSTALLER_BAD_INSTALL_PROFILE_JSON);
     return nullptr;
   }
   auto fi_ptr = Ptr(new ForgeInstaller());
