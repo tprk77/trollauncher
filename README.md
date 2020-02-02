@@ -28,6 +28,14 @@ install the right version of Forge.
 specific layout! It does not work for arbitrary modpacks. Please read [Making
 Modpacks](#making-modpacks) for more information.
 
+## Demo ##
+
+<p align="center">
+    <a href="https://youtu.be/L-zkzFXI994">
+        <img src="resource/trollauncher_demo.gif" alt="Trollauncher Demo" />
+    </a>
+</p>
+
 ## Supported Software ##
 
 | Java Edition | Bedrock Edition |
