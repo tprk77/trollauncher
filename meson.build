@@ -63,7 +63,7 @@ fs_dep = meson.get_compiler('cpp').find_library('stdc++fs')
 boost_dep = dependency(
   'boost',
   version : '>=1.65.0',
-  modules : ['system', 'filesystem'],
+  modules : ['system', 'filesystem', 'program_options'],
   include_type : 'system'
 )
 libzippp_dep = dependency(
@@ -88,6 +88,7 @@ wxwidgets_dep = dependency(
 ###############
 
 trollauncher_srcs = [
+    'trollauncher/cli.cpp',
     'trollauncher/error_codes.cpp',
     'trollauncher/forge_installer.cpp',
     'trollauncher/gui.cpp',
