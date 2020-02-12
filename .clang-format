@@ -17,4 +17,5 @@ AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBinaryOperators: NonAssignment
 IndentCaseLabels: false
 SpaceAfterCStyleCast: true
+PenaltyReturnTypeOnItsOwnLine: 120
 ...
