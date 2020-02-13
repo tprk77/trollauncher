@@ -24,6 +24,8 @@
 #include <optional>
 #include <system_error>
 
+#include "trollauncher/profile_data.hpp"
+
 namespace tl {
 
 class LauncherProfilesEditor final {
@@ -33,6 +35,9 @@ class LauncherProfilesEditor final {
   static Ptr Create(const std::filesystem::path& launcher_profiles_path, std::error_code* ec);
 
   bool Refresh(std::error_code* ec);
+
+  std::optional<ProfileData> GetProfile(const std::string& id) const;
+  std::vector<ProfileData> GetProfiles() const;
 
   bool HasProfileWithId(const std::string& id) const;
   bool HasProfileWithName(const std::string& name) const;

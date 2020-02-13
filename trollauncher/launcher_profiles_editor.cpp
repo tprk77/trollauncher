@@ -55,6 +55,7 @@ bool WriteLauncherProfilesJson(const fs::path& launcher_profiles_path,
 struct LauncherProfilesEditor::Data_ {
   fs::path launcher_profiles_path;
   nl::json launcher_profiles_json;
+  std::map<std::string, ProfileData> profile_data_map;
 };
 
 LauncherProfilesEditor::LauncherProfilesEditor()
@@ -77,6 +78,8 @@ LauncherProfilesEditor::Ptr LauncherProfilesEditor::Create(
 
 bool LauncherProfilesEditor::Refresh(std::error_code* ec)
 {
+  data_->launcher_profiles_json = nl::json::object();
+  data_->profile_data_map.clear();
   if (!fs::exists(data_->launcher_profiles_path)) {
     SetError(ec, Error::LAUNCHER_PROFILES_NONEXISTENT);
     return false;
@@ -89,28 +92,67 @@ bool LauncherProfilesEditor::Refresh(std::error_code* ec)
     return false;
   }
   data_->launcher_profiles_json = new_launcher_profiles_json;
+  const nl::json profiles_json = new_launcher_profiles_json.value("profiles", nl::json::object());
+  for (const auto& [profile_id, profile_json] : profiles_json.items()) {
+    const nl::json name_json = profile_json.value("name", nl::json(nullptr));
+    const nl::json type_json = profile_json.value("type", nl::json(nullptr));
+    const nl::json icon_json = profile_json.value("icon", nl::json(nullptr));
+    const nl::json version_json = profile_json.value("lastVersionId", nl::json(nullptr));
+    const nl::json game_path_json = profile_json.value("gameDir", nl::json(nullptr));
+    const nl::json java_path_json = profile_json.value("javaDir", nl::json(nullptr));
+    ProfileData profile_data;
+    profile_data.id = profile_id;
+    if (name_json.is_string()) {
+      profile_data.name_opt = name_json.get<std::string>();
+    }
+    if (type_json.is_string()) {
+      profile_data.type_opt = type_json.get<std::string>();
+    }
+    if (icon_json.is_string()) {
+      profile_data.icon_opt = icon_json.get<std::string>();
+    }
+    if (version_json.is_string()) {
+      profile_data.version_opt = version_json.get<std::string>();
+    }
+    if (game_path_json.is_string()) {
+      profile_data.game_path_opt = game_path_json.get<std::string>();
+    }
+    if (java_path_json.is_string()) {
+      profile_data.java_path_opt = java_path_json.get<std::string>();
+    }
+    data_->profile_data_map.emplace(profile_id, profile_data);
+  }
   return true;
+}
+
+std::optional<ProfileData> LauncherProfilesEditor::GetProfile(const std::string& id) const
+{
+  const auto profile_data_iter = data_->profile_data_map.find(id);
+  if (profile_data_iter == data_->profile_data_map.end()) {
+    return std::nullopt;
+  }
+  return std::get<1>(*profile_data_iter);
+}
+
+std::vector<ProfileData> LauncherProfilesEditor::GetProfiles() const
+{
+  std::vector<ProfileData> profile_datas;
+  for (const auto& [_, profile_data] : data_->profile_data_map) {
+    profile_datas.push_back(profile_data);
+  }
+  return profile_datas;
 }
 
 bool LauncherProfilesEditor::HasProfileWithId(const std::string& id) const
 {
-  const nl::json profiles_json =
-      data_->launcher_profiles_json.value("profiles", nl::json::object());
-  for (const auto& [profile_id, _] : profiles_json.items()) {
-    if (profile_id == id) {
-      return true;
-    }
-  }
-  return false;
+  const auto profile_data_iter = data_->profile_data_map.find(id);
+  return profile_data_iter != data_->profile_data_map.end();
 }
 
 bool LauncherProfilesEditor::HasProfileWithName(const std::string& name) const
 {
-  const nl::json profiles_json =
-      data_->launcher_profiles_json.value("profiles", nl::json::object());
-  for (const auto& [profile_id, profile_json] : profiles_json.items()) {
-    const nl::json profile_name = profile_json.value("name", nl::json(nullptr));
-    if (profile_name.is_string() && profile_name.get<std::string>() == name) {
+  for (const auto& [_, profile_data] : data_->profile_data_map) {
+    if (profile_data.name_opt.value_or("") == name) {
       return true;
     }
   }
