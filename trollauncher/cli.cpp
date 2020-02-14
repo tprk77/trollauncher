@@ -19,7 +19,9 @@
 #include "trollauncher/cli.hpp"
 
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 #include <boost/program_options.hpp>
 
@@ -29,6 +31,7 @@ namespace tl {
 
 namespace {
 
+namespace fs = std::filesystem;
 namespace bpo = boost::program_options;
 
 struct InstallArgs {
@@ -37,14 +40,27 @@ struct InstallArgs {
   std::string profile_icon;
 };
 
+struct ListArgs {
+  enum class Format { YAML, CSV };
+  Format format;
+  std::string csv_delim;
+};
+
 std::optional<std::string> GetCommand(const int argc, const char* const argv[]);
 std::vector<std::string> GetArgs(const int argc, const char* const argv[]);
 std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args,
                                             bool* show_usage_ptr, std::string* error_string_ptr);
+std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool* show_usage_ptr,
+                                      std::string* error_string_ptr);
 int InstallCli(const InstallArgs& install_args);
+int ListCli(const ListArgs& list_args);
+std::string QuotedStringOrNull(const std::optional<std::string>& str_opt);
+std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt);
+void OutputYaml(const std::vector<ProfileData>& profile_datas);
+void OutputCsv(const std::vector<ProfileData>& profile_datas, const std::string& delim);
 
 static const std::string overall_help_text =
-    ("Usage: trollauncher {install | --help} ...\n"
+    ("Usage: trollauncher {install | list | --help} ...\n"
      "\n"
      "Trollauncher is a modpack installer for the \"Vanilla\" Minecraft Launcher.\n"
      "\n"
@@ -54,18 +70,34 @@ static const std::string overall_help_text =
      "\n"
      "        Create a new launcher profile from a modpack.\n"
      "\n"
+     "    list [--help] [--yaml] [--csv=[DELIM]]\n"
+     "\n"
+     "        List previously installed launcher profiles.\n"
+     "\n"
      "\n"
      "Trollolololololololololo!\n");
 
 static const std::string install_help_text =
-    ("Usage: trollauncher install [--name NAME] [--icon ICON-ID] MODPACK-PATH\n"
+    ("Usage: trollauncher install [--help] [--name NAME] [--icon ICON-ID] MODPACK-PATH\n"
      "\n"
      "Create a new profile from a modpack.\n"
      "\n"
-     "    --help (-h)             Show install help \n"
+     "    --help (-h)             Show install help\n"
      "    --name (-n) NAME        Name of the new profile\n"
      "    --icon (-i) ICON-ID     Icon ID of the new profile\n"
      "    MODPACK-PATH            Path to the modpack zip file\n"
+     "\n"
+     "\n"
+     "Trollolololololololololo!\n");
+
+static const std::string list_help_text =
+    ("Usage: trollauncher list [--help] [--yaml] [--csv=[DELIM]]\n"
+     "\n"
+     "List previously installed launcher profiles.\n"
+     "\n"
+     "    --help (-h)             Show install help\n"
+     "    --yaml (-y)             Output as YAML\n"
+     "    --csv=[DELIM] (-c)      Output as CSV (DELIM=',')\n"
      "\n"
      "\n"
      "Trollolololololololololo!\n");
@@ -97,6 +129,21 @@ int CliMain(const int argc, const char* const argv[])
       return 1;
     }
     return InstallCli(install_args_opt.value());
+  }
+  else if (command == "list") {
+    bool show_usage = false;
+    std::string error_string;
+    const std::optional<ListArgs> list_args_opt = ParseListArgs(args, &show_usage, &error_string);
+    if (!list_args_opt) {
+      if (show_usage) {
+        std::cerr << list_help_text << "\n";
+      }
+      else if (!error_string.empty()) {
+        std::cerr << "Error: " << error_string << "\n";
+      }
+      return 1;
+    }
+    return ListCli(list_args_opt.value());
   }
   else {
     if (command != "--help" && command != "-h") {
@@ -180,6 +227,54 @@ std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args
   return install_args;
 }
 
+std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool* show_usage_ptr,
+                                      std::string* error_string_ptr)
+{
+  if (show_usage_ptr != nullptr) {
+    *show_usage_ptr = false;
+  }
+  if (error_string_ptr != nullptr) {
+    *error_string_ptr = "";
+  }
+  bpo::options_description options;
+  auto ez_adder = options.add_options();
+  ez_adder("help,h", new bpo::untyped_value(true));
+  ez_adder("yaml,y", new bpo::untyped_value(true));
+  ez_adder("csv,c", bpo::value<std::string>()->implicit_value(","));
+  bpo::command_line_parser parser(args);
+  parser.options(options);
+  bpo::variables_map vm;
+  try {
+    bpo::store(parser.run(), vm);
+    bpo::notify(vm);
+  }
+  catch (const bpo::error& ex) {
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = ex.what();
+    }
+    return std::nullopt;
+  }
+  if (vm.count("help") != 0) {
+    if (show_usage_ptr != nullptr) {
+      *show_usage_ptr = true;
+    }
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = install_help_text;
+    }
+    return std::nullopt;
+  }
+  if (vm.count("yaml") != 0 && vm.count("csv") != 0) {
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = "You must specify exactly one output format";
+    }
+    return std::nullopt;
+  }
+  ListArgs list_args;
+  list_args.format = (vm.count("csv") != 0 ? ListArgs::Format::CSV : ListArgs::Format::YAML);
+  list_args.csv_delim = (vm.count("csv") != 0 ? vm.at("csv").as<std::string>() : "");
+  return list_args;
+}
+
 int InstallCli(const InstallArgs& install_args)
 {
   std::error_code ec;
@@ -202,6 +297,73 @@ int InstallCli(const InstallArgs& install_args)
             << "' with icon '" << mi_ptr->GetIcon() << "'\n";
   std::cerr << "Modpack installed successfully!\n";
   return 0;
+}
+
+int ListCli(const ListArgs& list_args)
+{
+  std::error_code ec;
+  const std::vector<ProfileData> profile_datas = GetInstalledProfiles(&ec);
+  if (ec) {
+    std::cerr << "Error: " << ec.message() << "\n";
+    return 1;
+  }
+  switch (list_args.format) {
+  case ListArgs::Format::YAML:
+    OutputYaml(profile_datas);
+    break;
+  case ListArgs::Format::CSV:
+    OutputCsv(profile_datas, list_args.csv_delim);
+    break;
+  }
+  return 0;
+}
+
+std::string QuotedStringOrNull(const std::optional<std::string>& str_opt)
+{
+  if (!str_opt) {
+    return "null";
+  }
+  std::stringstream ss;
+  ss << std::quoted(str_opt.value());
+  return ss.str();
+}
+
+std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt)
+{
+  if (!path_opt) {
+    return "null";
+  }
+  std::stringstream ss;
+  ss << std::quoted(path_opt.value().string());
+  return ss.str();
+}
+
+void OutputYaml(const std::vector<ProfileData>& profile_datas)
+{
+  for (const ProfileData& profile_data : profile_datas) {
+    std::cout << profile_data.id << ":\n";
+    std::cout << "  name: " << QuotedStringOrNull(profile_data.name_opt) << "\n";
+    std::cout << "  type: " << QuotedStringOrNull(profile_data.type_opt) << "\n";
+    std::cout << "  icon: " << QuotedStringOrNull(profile_data.icon_opt) << "\n";
+    std::cout << "  version: " << QuotedStringOrNull(profile_data.version_opt) << "\n";
+    std::cout << "  game_path: " << QuotedStringOrNull(profile_data.game_path_opt) << "\n";
+    std::cout << "  java_path: " << QuotedStringOrNull(profile_data.java_path_opt) << "\n";
+  }
+}
+
+void OutputCsv(const std::vector<ProfileData>& profile_datas, const std::string& delim)
+{
+  std::cout << "ID" << delim << "Name" << delim << "Type" << delim << "Icon" << delim << "Version"
+            << delim << "Game Path" << delim << "Java Path\n";
+  for (const ProfileData& profile_data : profile_datas) {
+    std::cout << profile_data.id << delim;
+    std::cout << profile_data.name_opt.value_or("") << delim;
+    std::cout << profile_data.type_opt.value_or("") << delim;
+    std::cout << profile_data.icon_opt.value_or("") << delim;
+    std::cout << profile_data.version_opt.value_or("") << delim;
+    std::cout << profile_data.game_path_opt.value_or(fs::path()).string() << delim;
+    std::cout << profile_data.java_path_opt.value_or(fs::path()).string() << "\n";
+  }
 }
 
 }  // namespace
