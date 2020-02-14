@@ -48,6 +48,7 @@ namespace zpp = libzippp;
 
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
+bool LooksLikeAnInstall(const fs::path& game_path);
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr);
 fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path);
 bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
@@ -57,6 +58,37 @@ bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
                 const std::optional<fs::path>& strip_prefix_opt, std::error_code* ec);
 
 }  // namespace
+
+std::vector<ProfileData> GetInstalledProfiles(std::error_code* ec)
+{
+  std::optional<fs::path> dot_minecraft_path_opt = GetDefaultDotMinecraftPath();
+  if (!dot_minecraft_path_opt) {
+    SetError(ec, Error::DOT_MINECRAFT_NO_DEFAULT);
+    return {};
+  }
+  return GetInstalledProfiles(dot_minecraft_path_opt.value(), ec);
+}
+
+std::vector<ProfileData> GetInstalledProfiles(const std::filesystem::path& dot_minecraft_path,
+                                              std::error_code* ec)
+{
+  const fs::path launcher_profiles_path = dot_minecraft_path / "launcher_profiles.json";
+  auto lpe_ptr = LauncherProfilesEditor::Create(launcher_profiles_path, ec);
+  if (lpe_ptr == nullptr) {
+    return {};
+  }
+  std::vector<ProfileData> installed_profiles;
+  for (const ProfileData& profile_data : lpe_ptr->GetProfiles()) {
+    if (!profile_data.type_opt || profile_data.type_opt.value() != "custom") {
+      continue;
+    }
+    if (!profile_data.game_path_opt || !LooksLikeAnInstall(profile_data.game_path_opt.value())) {
+      continue;
+    }
+    installed_profiles.push_back(profile_data);
+  }
+  return installed_profiles;
+}
 
 struct ModpackInstaller::Data_ {
   fs::path modpack_path;
@@ -254,6 +286,21 @@ std::optional<fs::path> GetDefaultDotMinecraftPath()
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& id)
 {
   return dot_minecraft_path / "trollauncher" / id;
+}
+
+bool LooksLikeAnInstall(const fs::path& game_path)
+{
+  // Check for the presence "trollauncher/install.jar"
+  fs::path possible_installer_path = game_path / "trollauncher" / "installer.jar";
+  const bool is_trollauncher_like = fs::is_regular_file(possible_installer_path);
+  // Check for the absence of "assets", "libraries", and "versions"
+  fs::path possible_assets_path = game_path / "assets";
+  fs::path possible_libraries_path = game_path / "libraries";
+  fs::path possible_versions_path = game_path / "versions";
+  const bool is_minecraft_like =
+      (fs::is_directory(possible_assets_path) && fs::is_directory(possible_libraries_path)
+       && fs::is_directory(possible_versions_path));
+  return is_trollauncher_like && !is_minecraft_like;
 }
 
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr)

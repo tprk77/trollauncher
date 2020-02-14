@@ -24,7 +24,13 @@
 #include <optional>
 #include <system_error>
 
+#include "trollauncher/profile_data.hpp"
+
 namespace tl {
+
+std::vector<ProfileData> GetInstalledProfiles(std::error_code* ec);
+std::vector<ProfileData> GetInstalledProfiles(const std::filesystem::path& dot_minecraft_path,
+                                              std::error_code* ec);
 
 class ModpackInstaller final {
  public:
