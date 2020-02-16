@@ -48,6 +48,14 @@ struct ListArgs {
 
 std::optional<std::string> GetCommand(const int argc, const char* const argv[]);
 std::vector<std::string> GetArgs(const int argc, const char* const argv[]);
+template <typename Args>
+using ParseFunc = std::optional<Args> (*)(const std::vector<std::string>& args,
+                                          bool* show_usage_ptr, std::string* error_string_ptr);
+template <typename Args>
+using CliFunc = int (*)(const Args& install_args);
+template <typename Args>
+int DispatchCli(const ParseFunc<Args>& parse_func, const CliFunc<Args>& cli_func,
+                const std::string& help_text, const std::vector<std::string>& args);
 std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args,
                                             bool* show_usage_ptr, std::string* error_string_ptr);
 std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool* show_usage_ptr,
@@ -115,35 +123,10 @@ int CliMain(const int argc, const char* const argv[])
   }
   const std::string& command = command_opt.value();
   if (command == "install") {
-    bool show_usage = false;
-    std::string error_string;
-    const std::optional<InstallArgs> install_args_opt =
-        ParseInstallArgs(args, &show_usage, &error_string);
-    if (!install_args_opt) {
-      if (show_usage) {
-        std::cerr << install_help_text << "\n";
-      }
-      else if (!error_string.empty()) {
-        std::cerr << "Error: " << error_string << "\n";
-      }
-      return 1;
-    }
-    return InstallCli(install_args_opt.value());
+    return DispatchCli<InstallArgs>(ParseInstallArgs, InstallCli, install_help_text, args);
   }
   else if (command == "list") {
-    bool show_usage = false;
-    std::string error_string;
-    const std::optional<ListArgs> list_args_opt = ParseListArgs(args, &show_usage, &error_string);
-    if (!list_args_opt) {
-      if (show_usage) {
-        std::cerr << list_help_text << "\n";
-      }
-      else if (!error_string.empty()) {
-        std::cerr << "Error: " << error_string << "\n";
-      }
-      return 1;
-    }
-    return ListCli(list_args_opt.value());
+    return DispatchCli<ListArgs>(ParseListArgs, ListCli, list_help_text, args);
   }
   else {
     if (command != "--help" && command != "-h") {
@@ -171,6 +154,25 @@ std::vector<std::string> GetArgs(const int argc, const char* const argv[])
     args.push_back(argv[ii]);
   }
   return args;
+}
+
+template <typename Args>
+int DispatchCli(const ParseFunc<Args>& parse_func, const CliFunc<Args>& cli_func,
+                const std::string& help_text, const std::vector<std::string>& args)
+{
+  bool show_usage = false;
+  std::string error_string;
+  const std::optional<Args> args_opt = parse_func(args, &show_usage, &error_string);
+  if (!args_opt) {
+    if (show_usage) {
+      std::cerr << help_text << "\n";
+    }
+    else if (!error_string.empty()) {
+      std::cerr << "Error: " << error_string << "\n";
+    }
+    return 1;
+  }
+  return cli_func(args_opt.value());
 }
 
 std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args,
