@@ -69,7 +69,7 @@ std::vector<ProfileData> GetInstalledProfiles(std::error_code* ec)
   return GetInstalledProfiles(dot_minecraft_path_opt.value(), ec);
 }
 
-std::vector<ProfileData> GetInstalledProfiles(const std::filesystem::path& dot_minecraft_path,
+std::vector<ProfileData> GetInstalledProfiles(const fs::path& dot_minecraft_path,
                                               std::error_code* ec)
 {
   const fs::path launcher_profiles_path = dot_minecraft_path / "launcher_profiles.json";
@@ -108,8 +108,7 @@ ModpackInstaller::ModpackInstaller() : data_(std::make_unique<ModpackInstaller::
   // Do nothing
 }
 
-ModpackInstaller::Ptr ModpackInstaller::Create(const std::filesystem::path& modpack_path,
-                                               std::error_code* ec)
+ModpackInstaller::Ptr ModpackInstaller::Create(const fs::path& modpack_path, std::error_code* ec)
 {
   std::optional<fs::path> dot_minecraft_path_opt = GetDefaultDotMinecraftPath();
   if (!dot_minecraft_path_opt) {
@@ -119,8 +118,8 @@ ModpackInstaller::Ptr ModpackInstaller::Create(const std::filesystem::path& modp
   return Create(modpack_path, dot_minecraft_path_opt.value(), ec);
 }
 
-ModpackInstaller::Ptr ModpackInstaller::Create(const std::filesystem::path& modpack_path,
-                                               const std::filesystem::path& dot_minecraft_path,
+ModpackInstaller::Ptr ModpackInstaller::Create(const fs::path& modpack_path,
+                                               const fs::path& dot_minecraft_path,
                                                std::error_code* ec)
 {
   if (!fs::exists(modpack_path)) {
@@ -176,12 +175,12 @@ void ModpackInstaller::SetIcon(const std::string& icon)
   data_->icon = icon;
 }
 
-std::filesystem::path ModpackInstaller::GetInstallPath() const
+fs::path ModpackInstaller::GetInstallPath() const
 {
   return data_->install_path;
 }
 
-void ModpackInstaller::SetInstallPath(const std::filesystem::path& install_path)
+void ModpackInstaller::SetInstallPath(const fs::path& install_path)
 {
   data_->install_path = install_path;
 }

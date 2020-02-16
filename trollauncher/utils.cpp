@@ -279,7 +279,7 @@ std::optional<std::string> GetEnvironmentVar(const std::string& name)
   return var_ptr;
 }
 
-std::optional<std::filesystem::path> CreateTempDir()
+std::optional<fs::path> CreateTempDir()
 {
   // Ok, so this sucks because we can't use "mkdtemp" due to that not existing on MinGW, etc. And
   // using "tmpnam" also sucks because it's obsolete. So I guess we will just use Boost.

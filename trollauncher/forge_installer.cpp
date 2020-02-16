@@ -61,8 +61,7 @@ ForgeInstaller::ForgeInstaller() : data_(std::make_unique<ForgeInstaller::Data_>
 }
 
 ForgeInstaller::Ptr ForgeInstaller::Create(const fs::path& installer_path,
-                                           const std::filesystem::path& dot_minecraft_path,
-                                           std::error_code* ec)
+                                           const fs::path& dot_minecraft_path, std::error_code* ec)
 {
   if (!fs::exists(installer_path)) {
     SetError(ec, Error::FORGE_INSTALLER_NONEXISTENT);

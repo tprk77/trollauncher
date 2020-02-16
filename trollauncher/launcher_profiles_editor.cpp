@@ -64,8 +64,8 @@ LauncherProfilesEditor::LauncherProfilesEditor()
   // Do nothing
 }
 
-LauncherProfilesEditor::Ptr LauncherProfilesEditor::Create(
-    const std::filesystem::path& launcher_profiles_path, std::error_code* ec)
+LauncherProfilesEditor::Ptr LauncherProfilesEditor::Create(const fs::path& launcher_profiles_path,
+                                                           std::error_code* ec)
 {
   auto lpe_ptr = Ptr(new LauncherProfilesEditor());
   lpe_ptr->data_->launcher_profiles_path = launcher_profiles_path;
