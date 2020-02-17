@@ -61,6 +61,27 @@ class ModpackInstaller final {
   std::unique_ptr<Data_> data_;
 };
 
+class ModpackUpdater final {
+ public:
+  using Ptr = std::shared_ptr<ModpackUpdater>;
+
+  static Ptr Create(const std::string profile_id, const std::filesystem::path& modpack_path,
+                    std::error_code* ec);
+  static Ptr Create(const std::string profile_id, const std::filesystem::path& modpack_path,
+                    const std::filesystem::path& dot_minecraft_path, std::error_code* ec);
+
+  bool PrepInstall(std::error_code* ec);
+  std::optional<bool> IsForgeInstalled();
+
+  bool Update(std::error_code* ec);
+
+ private:
+  ModpackUpdater();
+
+  struct Data_;
+  std::unique_ptr<Data_> data_;
+};
+
 }  // namespace tl
 
 #endif  // TROLLAUNCHER_MODPACK_INSTALLER_HPP_

@@ -19,6 +19,7 @@
 #include "trollauncher/modpack_installer.hpp"
 
 #include <fstream>
+#include <iostream>
 #include <numeric>
 
 #include <libzippp.h>
@@ -27,6 +28,7 @@
 #include "trollauncher/error_codes.hpp"
 #include "trollauncher/forge_installer.hpp"
 #include "trollauncher/java_detector.hpp"
+#include "trollauncher/keeplist_processor.hpp"
 #include "trollauncher/launcher_profiles_editor.hpp"
 #include "trollauncher/utils.hpp"
 
@@ -48,14 +50,21 @@ namespace zpp = libzippp;
 
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
-bool LooksLikeAnInstall(const fs::path& game_path);
+bool ProfileLooksLikeAnInstall(const ProfileData& profile_data);
+bool ProfileLooksLikeAnInstall(const fs::path& profile_path);
+std::optional<std::vector<fs::path>> GetDirFilePaths(const fs::path& dir_path);
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr);
 fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path);
-bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
-                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path,
-                std::error_code* ec);
-bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
-                const std::optional<fs::path>& strip_prefix_opt, std::error_code* ec);
+bool ExtractOne(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path);
+bool ExtractAll(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                const std::optional<fs::path>& strip_prefix_opt);
+bool ExtractOverwrites(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                       const std::optional<fs::path>& strip_prefix_opt,
+                       const KeeplistProcessor::Ptr& klp_ptr);
+fs::path GetBackupZipPath(const fs::path& dot_minecraft_path, const std::string& id);
+bool CreateBackupZipFile(const fs::path& backup_path, const fs::path& profile_path,
+                         const std::vector<fs::path>& overwrite_paths);
 
 }  // namespace
 
@@ -79,10 +88,7 @@ std::vector<ProfileData> GetInstalledProfiles(const fs::path& dot_minecraft_path
   }
   std::vector<ProfileData> installed_profiles;
   for (const ProfileData& profile_data : lpe_ptr->GetProfiles()) {
-    if (!profile_data.type_opt || profile_data.type_opt.value() != "custom") {
-      continue;
-    }
-    if (!profile_data.game_path_opt || !LooksLikeAnInstall(profile_data.game_path_opt.value())) {
+    if (!ProfileLooksLikeAnInstall(profile_data)) {
       continue;
     }
     installed_profiles.push_back(profile_data);
@@ -194,9 +200,7 @@ bool ModpackInstaller::PrepInstall(std::error_code* ec)
   }
   const fs::path& temp_path = temp_path_opt.value();
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  std::error_code temp_ec;
-  if (!ExtractOne(temp_path, data_->zip_ptr.get(), tl_dir_opt, "trollauncher/installer.jar",
-                  &temp_ec)) {
+  if (!ExtractOne(data_->zip_ptr.get(), temp_path, tl_dir_opt, "trollauncher/installer.jar")) {
     SetError(ec, Error::MODPACK_PREP_INSTALL_UNZIP_FAILED);
     return false;
   }
@@ -252,7 +256,8 @@ bool ModpackInstaller::Install(std::error_code* ec)
   }
   // Step 2: Extract modpack
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  if (!ExtractAll(data_->install_path, data_->zip_ptr.get(), tl_dir_opt, ec)) {
+  if (!ExtractAll(data_->zip_ptr.get(), data_->install_path, tl_dir_opt)) {
+    SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   // Step 3: Write profile
@@ -260,6 +265,155 @@ bool ModpackInstaller::Install(std::error_code* ec)
   const std::optional<fs::path> java_path_opt = JavaDetector::GetJavaVersion8();
   if (!data_->lpe_ptr->WriteProfile(data_->id, data_->name, data_->icon, forge_version,
                                     data_->install_path, java_path_opt, ec)) {
+    return false;
+  }
+  return true;
+}
+
+struct ModpackUpdater::Data_ {
+  std::string profile_id;
+  fs::path modpack_path;
+  fs::path dot_minecraft_path;
+  LauncherProfilesEditor::Ptr lpe_ptr;
+  std::unique_ptr<zpp::ZipArchive> zip_ptr;
+  bool is_prepped;
+  ForgeInstaller::Ptr fi_ptr;
+};
+
+ModpackUpdater::ModpackUpdater() : data_(std::make_unique<ModpackUpdater::Data_>())
+{
+  // Do nothing
+}
+
+ModpackUpdater::Ptr ModpackUpdater::Create(const std::string profile_id,
+                                           const fs::path& modpack_path, std::error_code* ec)
+{
+  std::optional<fs::path> dot_minecraft_path_opt = GetDefaultDotMinecraftPath();
+  if (!dot_minecraft_path_opt) {
+    SetError(ec, Error::DOT_MINECRAFT_NO_DEFAULT);
+    return nullptr;
+  }
+  return Create(profile_id, modpack_path, dot_minecraft_path_opt.value(), ec);
+}
+
+ModpackUpdater::Ptr ModpackUpdater::Create(const std::string profile_id,
+                                           const fs::path& modpack_path,
+                                           const fs::path& dot_minecraft_path, std::error_code* ec)
+{
+  if (!fs::exists(modpack_path)) {
+    SetError(ec, Error::MODPACK_NONEXISTENT);
+    return nullptr;
+  }
+  // TODO Test if this is a zip file
+  if (!fs::is_regular_file(modpack_path)) {
+    SetError(ec, Error::MODPACK_NOT_REGULAR_FILE);
+    return nullptr;
+  }
+  auto zip_ptr = std::make_unique<zpp::ZipArchive>(modpack_path.string());
+  if (!zip_ptr->open(zpp::ZipArchive::READ_ONLY)) {
+    SetError(ec, Error::MODPACK_ZIP_OPEN_FAILED);
+    return nullptr;
+  }
+  const fs::path launcher_profiles_path = dot_minecraft_path / "launcher_profiles.json";
+  auto lpe_ptr = LauncherProfilesEditor::Create(launcher_profiles_path, ec);
+  if (lpe_ptr == nullptr) {
+    return nullptr;
+  }
+  auto mu_ptr = Ptr(new ModpackUpdater());
+  mu_ptr->data_->profile_id = profile_id;
+  mu_ptr->data_->modpack_path = modpack_path;
+  mu_ptr->data_->dot_minecraft_path = dot_minecraft_path;
+  mu_ptr->data_->lpe_ptr = std::move(lpe_ptr);
+  mu_ptr->data_->zip_ptr = std::move(zip_ptr);
+  mu_ptr->data_->is_prepped = false;
+  mu_ptr->data_->fi_ptr = nullptr;
+  return mu_ptr;
+}
+
+bool ModpackUpdater::PrepInstall(std::error_code* ec)
+{
+  std::optional<fs::path> temp_path_opt = CreateTempDir();
+  if (!temp_path_opt) {
+    SetError(ec, Error::MODPACK_PREP_INSTALL_TEMPDIR_FAILED);
+    return false;
+  }
+  const fs::path& temp_path = temp_path_opt.value();
+  const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
+  if (!ExtractOne(data_->zip_ptr.get(), temp_path, tl_dir_opt, "trollauncher/installer.jar")) {
+    SetError(ec, Error::MODPACK_PREP_INSTALL_UNZIP_FAILED);
+    return false;
+  }
+  const fs::path forge_installer_path = temp_path / "trollauncher" / "installer.jar";
+  auto fi_ptr = ForgeInstaller::Create(forge_installer_path, data_->dot_minecraft_path, ec);
+  if (fi_ptr == nullptr) {
+    return false;
+  }
+  data_->fi_ptr = std::move(fi_ptr);
+  data_->is_prepped = true;
+  return true;
+}
+
+std::optional<bool> ModpackUpdater::IsForgeInstalled()
+{
+  if (!data_->is_prepped) {
+    return std::nullopt;
+  }
+  return data_->fi_ptr->IsInstalled();
+}
+
+bool ModpackUpdater::Update(std::error_code* ec)
+{
+  std::error_code fs_ec;
+  if (!data_->lpe_ptr->Refresh(ec)) {
+    return false;
+  }
+  const std::optional<ProfileData> profile_data_opt = data_->lpe_ptr->GetProfile(data_->profile_id);
+  if (!profile_data_opt) {
+    SetError(ec, Error::PROFILE_NONEXISTENT);
+    return false;
+  }
+  const ProfileData& profile_data = profile_data_opt.value();
+  if (!ProfileLooksLikeAnInstall(profile_data) || !profile_data.game_path_opt) {
+    SetError(ec, Error::PROFILE_NOT_AN_INSTALL);
+    return false;
+  }
+  const fs::path profile_path = profile_data.game_path_opt.value();
+  if (!fs::is_directory(profile_path)) {
+    SetError(ec, Error::MODPACK_DESTINATION_NOT_DIRECTORY);
+    return false;
+  }
+  // Step 0: Prep install
+  if (!data_->is_prepped && !PrepInstall(ec)) {
+    return false;
+  }
+  // Step 1: Get existing files not in the keeplist
+  const auto klp_ptr = KeeplistProcessor::CreateDefault();
+  if (klp_ptr == nullptr) {
+    SetError(ec, Error::MODPACK_KEEPLIST_FAILED);
+    return false;
+  }
+  const std::optional<std::vector<fs::path>> all_file_paths_opt = GetDirFilePaths(profile_path);
+  if (!all_file_paths_opt) {
+    SetError(ec, Error::PROFILE_GET_FILES_FAILED);
+    return false;
+  }
+  const std::vector<fs::path> overwrite_paths =
+      klp_ptr->FilterOverwritePaths(all_file_paths_opt.value());
+  // Step 2: Create zip file of all old files
+  const fs::path backup_path = GetBackupZipPath(data_->dot_minecraft_path, data_->profile_id);
+  if (!CreateBackupZipFile(backup_path, profile_path, overwrite_paths)) {
+    SetError(ec, Error::PROFILE_BACKUP_FAILED);
+    return false;
+  }
+  // Step 3: Delete all old files
+  for (const fs::path& overwrite_path : overwrite_paths) {
+    const fs::path full_path = profile_path / overwrite_path;
+    fs::remove(full_path, fs_ec);
+  }
+  // Step 4: Extract new files not in the keeplist
+  const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
+  if (!ExtractOverwrites(data_->zip_ptr.get(), profile_path, tl_dir_opt, klp_ptr)) {
+    SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   return true;
@@ -287,19 +441,51 @@ fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::st
   return dot_minecraft_path / "trollauncher" / id;
 }
 
-bool LooksLikeAnInstall(const fs::path& game_path)
+bool ProfileLooksLikeAnInstall(const ProfileData& profile_data)
+{
+  if (!profile_data.type_opt || profile_data.type_opt.value() != "custom") {
+    return false;
+  }
+  if (!profile_data.game_path_opt
+      || !ProfileLooksLikeAnInstall(profile_data.game_path_opt.value())) {
+    return false;
+  }
+  return true;
+}
+
+bool ProfileLooksLikeAnInstall(const fs::path& profile_path)
 {
   // Check for the presence "trollauncher/install.jar"
-  fs::path possible_installer_path = game_path / "trollauncher" / "installer.jar";
+  fs::path possible_installer_path = profile_path / "trollauncher" / "installer.jar";
   const bool is_trollauncher_like = fs::is_regular_file(possible_installer_path);
   // Check for the absence of "assets", "libraries", and "versions"
-  fs::path possible_assets_path = game_path / "assets";
-  fs::path possible_libraries_path = game_path / "libraries";
-  fs::path possible_versions_path = game_path / "versions";
+  fs::path possible_assets_path = profile_path / "assets";
+  fs::path possible_libraries_path = profile_path / "libraries";
+  fs::path possible_versions_path = profile_path / "versions";
   const bool is_minecraft_like =
       (fs::is_directory(possible_assets_path) && fs::is_directory(possible_libraries_path)
        && fs::is_directory(possible_versions_path));
   return is_trollauncher_like && !is_minecraft_like;
+}
+
+std::optional<std::vector<fs::path>> GetDirFilePaths(const fs::path& dir_path)
+{
+  std::error_code fs_ec;
+  std::vector<fs::path> raw_file_paths;
+  const auto update_dir_iter = fs::recursive_directory_iterator(dir_path, fs_ec);
+  if (fs_ec) {
+    return std::nullopt;
+  }
+  for (const fs::path& path : update_dir_iter) {
+    if (fs::is_regular_file(path)) {
+      raw_file_paths.push_back(path);
+    }
+  }
+  std::vector<fs::path> relative_file_paths;
+  for (const fs::path& path : raw_file_paths) {
+    relative_file_paths.push_back(StripPrefix(path, dir_path));
+  }
+  return relative_file_paths;
 }
 
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr)
@@ -348,25 +534,22 @@ fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path)
   return orig_remainder_path;
 }
 
-bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
-                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path,
-                std::error_code* ec)
+bool ExtractOne(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path)
 {
   std::error_code fs_ec;
   const fs::path complete_path =
       (add_prefix_opt ? add_prefix_opt.value() / entry_path : entry_path);
   zpp::ZipEntry zip_entry = zip_ptr->getEntry(complete_path.generic_string());
   if (!zip_entry.isFile()) {
-    SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
-  const fs::path dest_path = install_path / entry_path;
+  const fs::path dest_path = extract_path / entry_path;
   // Create the parent directory if we need to
   const fs::path dest_parent_path = dest_path.parent_path();
   if (!fs::exists(dest_parent_path)) {
     fs::create_directories(dest_parent_path, fs_ec);
     if (fs_ec) {
-      SetError(ec, Error::MODPACK_UNZIP_FAILED);
       return false;
     }
   }
@@ -375,19 +558,24 @@ bool ExtractOne(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
       std::ios_base::binary | std::ios_base::out | std::ios_base::trunc;
   std::ofstream file_ofs(dest_path, ofs_flags);
   if (!file_ofs.good()) {
-    SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   const int zip_error_code = zip_ptr->readEntry(zip_entry, file_ofs);
   if (zip_error_code != LIBZIPPP_OK) {
-    SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   return true;
 }
 
-bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
-                const std::optional<fs::path>& strip_prefix_opt, std::error_code* ec)
+bool ExtractAll(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                const std::optional<fs::path>& strip_prefix_opt)
+{
+  return ExtractOverwrites(zip_ptr, extract_path, strip_prefix_opt, nullptr);
+}
+
+bool ExtractOverwrites(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
+                       const std::optional<fs::path>& strip_prefix_opt,
+                       const KeeplistProcessor::Ptr& klp_ptr)
 {
   std::error_code fs_ec;
   const std::vector<zpp::ZipEntry> zip_entries = zip_ptr->getEntries();
@@ -396,15 +584,17 @@ bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
       continue;
     }
     const fs::path entry_path = zip_entry.getName();
-    const fs::path dest_path =
-        (strip_prefix_opt ? install_path / StripPrefix(entry_path, strip_prefix_opt.value())
-                          : install_path / entry_path);
+    const fs::path stripped_entry_path =
+        (strip_prefix_opt ? StripPrefix(entry_path, strip_prefix_opt.value()) : entry_path);
+    if (klp_ptr != nullptr && !klp_ptr->IsOverwritePath(stripped_entry_path)) {
+      continue;
+    }
+    const fs::path dest_path = extract_path / stripped_entry_path;
     // Create the parent directory if we need to
     const fs::path dest_parent_path = dest_path.parent_path();
     if (!fs::exists(dest_parent_path)) {
       fs::create_directories(dest_parent_path, fs_ec);
       if (fs_ec) {
-        SetError(ec, Error::MODPACK_UNZIP_FAILED);
         return false;
       }
     }
@@ -413,12 +603,51 @@ bool ExtractAll(const fs::path& install_path, zpp::ZipArchive* zip_ptr,
         std::ios_base::binary | std::ios_base::out | std::ios_base::trunc;
     std::ofstream file_ofs(dest_path, ofs_flags);
     if (!file_ofs.good()) {
-      SetError(ec, Error::MODPACK_UNZIP_FAILED);
       return false;
     }
     const int zip_error_code = zip_ptr->readEntry(zip_entry, file_ofs);
     if (zip_error_code != LIBZIPPP_OK) {
-      SetError(ec, Error::MODPACK_UNZIP_FAILED);
+      return false;
+    }
+  }
+  return true;
+}
+
+fs::path GetBackupZipPath(const fs::path& dot_minecraft_path, const std::string& id)
+{
+  const std::string time_str = ([]() {
+    const auto now_chrono = std::chrono::system_clock::now();
+    std::time_t now_time_t = std::chrono::system_clock::to_time_t(now_chrono);
+    char time_c_str[sizeof "00000000_000000"];
+    std::strftime(time_c_str, sizeof time_c_str, "%Y%m%d_%H%M%S", std::gmtime(&now_time_t));
+    return std::string(time_c_str);
+  }());
+  return dot_minecraft_path / "trollauncher" / "backups" / id / (time_str + ".zip");
+}
+
+bool CreateBackupZipFile(const fs::path& backup_path, const fs::path& profile_path,
+                         const std::vector<fs::path>& overwrite_paths)
+{
+  std::error_code fs_ec;
+  if (fs::exists(backup_path)) {
+    return false;
+  }
+  const fs::path backup_parent_path = backup_path.parent_path();
+  if (!fs::exists(backup_parent_path)) {
+    fs::create_directories(backup_parent_path, fs_ec);
+    if (fs_ec) {
+      return false;
+    }
+  }
+  auto zip_ptr = std::make_unique<zpp::ZipArchive>(backup_path.string());
+  if (!zip_ptr->open(zpp::ZipArchive::NEW)) {
+    return false;
+  }
+  for (const fs::path& overwrite_path : overwrite_paths) {
+    const fs::path full_path = profile_path / overwrite_path;
+    if (!zip_ptr->addFile(overwrite_path.generic_string(), full_path.string())) {
+      zip_ptr->close();
+      fs::remove(backup_path, fs_ec);
       return false;
     }
   }

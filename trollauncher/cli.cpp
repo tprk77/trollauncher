@@ -40,6 +40,11 @@ struct InstallArgs {
   std::string profile_icon;
 };
 
+struct UpdateArgs {
+  std::string profile_id;
+  std::string modpack_path;
+};
+
 struct ListArgs {
   enum class Format { YAML, CSV };
   Format format;
@@ -58,9 +63,12 @@ int DispatchCli(const ParseFunc<Args>& parse_func, const CliFunc<Args>& cli_func
                 const std::string& help_text, const std::vector<std::string>& args);
 std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args,
                                             bool* show_usage_ptr, std::string* error_string_ptr);
+std::optional<UpdateArgs> ParseUpdateArgs(const std::vector<std::string>& args,
+                                          bool* show_usage_ptr, std::string* error_string_ptr);
 std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool* show_usage_ptr,
                                       std::string* error_string_ptr);
 int InstallCli(const InstallArgs& install_args);
+int UpdateCli(const UpdateArgs& update_args);
 int ListCli(const ListArgs& list_args);
 std::string QuotedStringOrNull(const std::optional<std::string>& str_opt);
 std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt);
@@ -68,7 +76,7 @@ void OutputYaml(const std::vector<ProfileData>& profile_datas);
 void OutputCsv(const std::vector<ProfileData>& profile_datas, const std::string& delim);
 
 static const std::string overall_help_text =
-    ("Usage: trollauncher {install | list | --help} ...\n"
+    ("Usage: trollauncher {install | update | list | --help} ...\n"
      "\n"
      "Trollauncher is a modpack installer for the \"Vanilla\" Minecraft Launcher.\n"
      "\n"
@@ -77,6 +85,10 @@ static const std::string overall_help_text =
      "    install [--help] [--name NAME] [--icon ICON-ID] MODPACK-PATH\n"
      "\n"
      "        Create a new launcher profile from a modpack.\n"
+     "\n"
+     "    update [--help] PROFILE-ID MODPACK-PATH\n"
+     "\n"
+     "        Update a launcher profile with a modpack.\n"
      "\n"
      "    list [--help] [--yaml] [--csv=[DELIM]]\n"
      "\n"
@@ -93,6 +105,18 @@ static const std::string install_help_text =
      "    --help (-h)             Show install help\n"
      "    --name (-n) NAME        Name of the new profile\n"
      "    --icon (-i) ICON-ID     Icon ID of the new profile\n"
+     "    MODPACK-PATH            Path to the modpack zip file\n"
+     "\n"
+     "\n"
+     "Trollolololololololololo!\n");
+
+static const std::string update_help_text =
+    ("Usage: trollauncher update [--help] PROFILE-ID MODPACK-PATH\n"
+     "\n"
+     "Update a profile with a modpack.\n"
+     "\n"
+     "    --help (-h)             Show update help \n"
+     "    PROFILE-ID              ID of the profile to update\n"
      "    MODPACK-PATH            Path to the modpack zip file\n"
      "\n"
      "\n"
@@ -124,6 +148,9 @@ int CliMain(const int argc, const char* const argv[])
   const std::string& command = command_opt.value();
   if (command == "install") {
     return DispatchCli<InstallArgs>(ParseInstallArgs, InstallCli, install_help_text, args);
+  }
+  else if (command == "update" || command == "upgrade") {
+    return DispatchCli<UpdateArgs>(ParseUpdateArgs, UpdateCli, update_help_text, args);
   }
   else if (command == "list") {
     return DispatchCli<ListArgs>(ParseListArgs, ListCli, list_help_text, args);
@@ -229,6 +256,65 @@ std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args
   return install_args;
 }
 
+std::optional<UpdateArgs> ParseUpdateArgs(const std::vector<std::string>& args,
+                                          bool* show_usage_ptr, std::string* error_string_ptr)
+{
+  if (show_usage_ptr != nullptr) {
+    *show_usage_ptr = false;
+  }
+  if (error_string_ptr != nullptr) {
+    *error_string_ptr = "";
+  }
+  bpo::options_description options;
+  auto ez_adder = options.add_options();
+  ez_adder("help,h", new bpo::untyped_value(true));
+  // Don't make these "required", but check the count later
+  ez_adder("id", bpo::value<std::string>());
+  ez_adder("path", bpo::value<std::string>());
+  bpo::positional_options_description positional;
+  positional.add("id", 1);
+  positional.add("path", 1);
+  bpo::command_line_parser parser(args);
+  parser.options(options);
+  parser.positional(positional);
+  bpo::variables_map vm;
+  try {
+    bpo::store(parser.run(), vm);
+    bpo::notify(vm);
+  }
+  catch (const bpo::error& ex) {
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = ex.what();
+    }
+    return std::nullopt;
+  }
+  if (vm.count("help") != 0) {
+    if (show_usage_ptr != nullptr) {
+      *show_usage_ptr = true;
+    }
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = update_help_text;
+    }
+    return std::nullopt;
+  }
+  if (vm.count("id") == 0) {
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = "Missing profile ID to update";
+    }
+    return std::nullopt;
+  }
+  if (vm.count("path") == 0) {
+    if (error_string_ptr != nullptr) {
+      *error_string_ptr = "Missing path to modpack zip file";
+    }
+    return std::nullopt;
+  }
+  UpdateArgs update_args;
+  update_args.profile_id = vm.at("id").as<std::string>();
+  update_args.modpack_path = vm.at("path").as<std::string>();
+  return update_args;
+}
+
 std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool* show_usage_ptr,
                                       std::string* error_string_ptr)
 {
@@ -298,6 +384,23 @@ int InstallCli(const InstallArgs& install_args)
   std::cerr << "Created profile '" << mi_ptr->GetName()  //
             << "' with icon '" << mi_ptr->GetIcon() << "'\n";
   std::cerr << "Modpack installed successfully!\n";
+  return 0;
+}
+
+int UpdateCli(const UpdateArgs& update_args)
+{
+  std::error_code ec;
+  auto mu_ptr = ModpackUpdater::Create(update_args.profile_id, update_args.modpack_path, &ec);
+  if (mu_ptr == nullptr) {
+    std::cerr << "Error: " << ec.message() << "\n";
+    return 1;
+  }
+  if (!mu_ptr->Update(&ec)) {
+    std::cerr << "Error: " << ec.message() << "\n";
+    return 1;
+  }
+  std::cerr << "Updated profile '" << update_args.profile_id << "'\n";
+  std::cerr << "Modpack updated successfully!\n";
   return 0;
 }
 

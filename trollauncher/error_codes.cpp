@@ -102,6 +102,9 @@ std::string TrollauncherCategory::message(int error) const
   else if (error == static_cast<int>(Error::MODPACK_DESTINATION_NOT_EMPTY)) {
     return "The modpack install destination is not an empty directory";
   }
+  else if (error == static_cast<int>(Error::MODPACK_KEEPLIST_FAILED)) {
+    return "Failed to create keeplist processor";
+  }
   else if (error == static_cast<int>(Error::MODPACK_UNZIP_FAILED)) {
     return "Failed to unzip the modpack zip file";
   }
@@ -137,6 +140,18 @@ std::string TrollauncherCategory::message(int error) const
   }
   else if (error == static_cast<int>(Error::FORGE_INSTALLER_BAD_INSTALL)) {
     return "Forge installer ran, but didn't install correctly";
+  }
+  else if (error == static_cast<int>(Error::PROFILE_NONEXISTENT)) {
+    return "Profile does not exist";
+  }
+  else if (error == static_cast<int>(Error::PROFILE_NOT_AN_INSTALL)) {
+    return "Profile does not look like a previous install";
+  }
+  else if (error == static_cast<int>(Error::PROFILE_GET_FILES_FAILED)) {
+    return "Failed to get profile files";
+  }
+  else if (error == static_cast<int>(Error::PROFILE_BACKUP_FAILED)) {
+    return "Failed to create backup of profile files";
   }
   else {
     return "Unknown Trollauncher error";
