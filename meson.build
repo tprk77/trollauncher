@@ -93,6 +93,7 @@ trollauncher_srcs = [
     'trollauncher/forge_installer.cpp',
     'trollauncher/gui.cpp',
     'trollauncher/java_detector.cpp',
+    'trollauncher/keeplist_processor.cpp',
     'trollauncher/launcher_profiles_editor.cpp',
     'trollauncher/main.cpp',
     'trollauncher/modpack_installer.cpp',
