@@ -40,21 +40,37 @@ class GuiApp : public wxApp {
   virtual bool OnInit() override;
 };
 
+wxIMPLEMENT_WX_THEME_SUPPORT wxIMPLEMENT_APP_NO_MAIN(GuiApp);
+
 class GuiFrame : public wxFrame {
  public:
   GuiFrame();
 
  private:
+  void OnSelectInstall(wxCommandEvent& event);
+  void OnSelectUpdate(wxCommandEvent& event);
   void OnDoModpackInstall(wxCommandEvent& event);
+  void OnDoModpackUpdate(wxCommandEvent& event);
 
   wxPanel* panel_ptr_;
   ModpackInstaller::Ptr mi_ptr_;
+  ModpackUpdater::Ptr mu_ptr_;
 };
 
 struct ModpackInstallData {
   std::string modpack_path;
   std::string profile_name;
   std::string profile_icon;
+};
+
+constexpr int ID_SELECT_INSTALL = 1;
+constexpr int ID_SELECT_UPDATE = 2;
+constexpr int ID_DO_MODPACK_INSTALL = 3;
+constexpr int ID_DO_MODPACK_UPDATE = 4;
+
+class GuiPanelModeSelector : public wxPanel {
+ public:
+  GuiPanelModeSelector(wxWindow* parent);
 };
 
 class GuiPanelModpackInstall : public wxPanel {
@@ -69,7 +85,22 @@ class GuiPanelModpackInstall : public wxPanel {
   wxChoice* icon_choice_ptr_;
 };
 
-constexpr int ID_DO_MODPACK_INSTALL = 1;
+struct ModpackUpdateData {
+  std::string modpack_path;
+  std::string profile_id;
+};
+
+class GuiPanelModpackUpdate : public wxPanel {
+ public:
+  GuiPanelModpackUpdate(wxWindow* parent);
+
+  ModpackUpdateData GetData() const;
+
+ private:
+  std::vector<ProfileData> profile_datas_;
+  wxFilePickerCtrl* path_picker_ptr_;
+  wxChoice* profile_choice_ptr_;
+};
 
 class GuiDialogForgePromo : public wxDialog {
  public:
@@ -92,7 +123,30 @@ class GuiDialogForgeNotice : public wxDialog {
 };
 
 void OpenUrlInBrowser(const char* const url);
+std::vector<std::string> GetUniqueProfileNames(const std::vector<ProfileData>& profile_datas);
 const wxBitmap& GetTrollfaceIcon16x16();
+
+}  // namespace
+
+int GuiMain(const int, const char* const[])
+{
+  wxInitializer initializer(0, static_cast<char**>(nullptr));
+  if (!initializer.IsOk()) {
+    return 1;
+  }
+  if (!wxGetApp().CallOnInit()) {
+    return 1;
+  }
+  struct Exiter {
+    ~Exiter()
+    {
+      wxGetApp().OnExit();
+    }
+  } exiter;
+  return wxGetApp().OnRun();
+}
+
+namespace {
 
 bool GuiApp::OnInit()
 {
@@ -105,20 +159,55 @@ bool GuiApp::OnInit()
 GuiFrame::GuiFrame() : wxFrame(NULL, wxID_ANY, "Trollauncher")
 {
   wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(1);
-  panel_ptr_ = new GuiPanelModpackInstall(this);
+  panel_ptr_ = new GuiPanelModeSelector(this);
   grid_ptr->Add(panel_ptr_);
   SetSizerAndFit(grid_ptr);
   // Lock down resizing
   SetMinSize(GetSize());
   SetMaxSize(GetSize());
   // Connect everything up
+  Bind(wxEVT_BUTTON, &GuiFrame::OnSelectInstall, this, ID_SELECT_INSTALL);
+  Bind(wxEVT_BUTTON, &GuiFrame::OnSelectUpdate, this, ID_SELECT_UPDATE);
   Bind(wxEVT_BUTTON, &GuiFrame::OnDoModpackInstall, this, ID_DO_MODPACK_INSTALL);
+  Bind(wxEVT_BUTTON, &GuiFrame::OnDoModpackUpdate, this, ID_DO_MODPACK_UPDATE);
   // Set the icon
   wxIcon trollface_icon;
   trollface_icon.CopyFromBitmap(GetTrollfaceIcon16x16());
   SetIcon(trollface_icon);
   // Center the frame in the screen
   Center();
+}
+
+void GuiFrame::OnSelectInstall(wxCommandEvent&)
+{
+  // Unlock resizing
+  SetMinSize(wxSize(-1, -1));
+  SetMaxSize(wxSize(-1, -1));
+  // Replace the previous pannel
+  panel_ptr_->Destroy();
+  wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(1);
+  panel_ptr_ = new GuiPanelModpackInstall(this);
+  grid_ptr->Add(panel_ptr_);
+  SetSizerAndFit(grid_ptr);
+  // Lock down resizing
+  SetMinSize(GetSize());
+  SetMaxSize(GetSize());
+}
+
+void GuiFrame::OnSelectUpdate(wxCommandEvent&)
+{
+  // Unlock resizing
+  SetMinSize(wxSize(-1, -1));
+  SetMaxSize(wxSize(-1, -1));
+  // Replace the previous pannel
+  panel_ptr_->Destroy();
+  wxFlexGridSizer* grid_ptr = new wxFlexGridSizer(1);
+  panel_ptr_ = new GuiPanelModpackUpdate(this);
+  grid_ptr->Add(panel_ptr_);
+  SetSizerAndFit(grid_ptr);
+  // Lock down resizing
+  SetMinSize(GetSize());
+  SetMaxSize(GetSize());
 }
 
 void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
@@ -170,9 +259,74 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
   Close();
 }
 
+void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
+{
+  const ModpackUpdateData data = static_cast<GuiPanelModpackUpdate*>(panel_ptr_)->GetData();
+  if (data.modpack_path.empty()) {
+    wxMessageBox("You must supply a modpack path.", "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  if (data.profile_id.empty()) {
+    wxMessageBox("You must supply a profile ID.", "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  std::error_code ec;
+  mu_ptr_ = ModpackUpdater::Create(data.profile_id, data.modpack_path, &ec);
+  if (mu_ptr_ == nullptr) {
+    const auto text = wxString::Format("Cannot initialize updater!\n\n%s.", ec.message());
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  if (!mu_ptr_->PrepInstall(&ec)) {
+    const auto text = wxString::Format("Cannot prepare installer!\n\n%s.", ec.message());
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  GuiDialogForgePromo forge_promo_dialog(this);
+  if (forge_promo_dialog.ShowModal() != wxID_OK) {
+    return;
+  }
+  if (!mu_ptr_->IsForgeInstalled().value()) {
+    GuiDialogForgeNotice forge_notice_dialog(this);
+    if (forge_notice_dialog.ShowModal() != wxID_OK) {
+      return;
+    }
+  }
+  if (!mu_ptr_->Update(&ec)) {
+    const auto text = wxString::Format("Cannot update modpack!\n\n%s.", ec.message());
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  const auto text = wxString::Format("Modpack updated successfully.", ec.message());
+  wxMessageBox(text, "Success", wxOK, this);
+  Close();
+}
+
+GuiPanelModeSelector::GuiPanelModeSelector(wxWindow* parent) : wxPanel(parent)
+{
+  constexpr int BORDER_WIDTH = 10;
+  constexpr int MIN_BUTTON_WIDTH = 300;
+  wxButton* install_button_ptr = new wxButton(this, ID_SELECT_INSTALL, "Install Modpack");
+  install_button_ptr->SetMinSize(
+      wxSize(MIN_BUTTON_WIDTH, 2 * install_button_ptr->GetSize().GetHeight()));
+  wxButton* update_button_ptr = new wxButton(this, ID_SELECT_UPDATE, "Update Modpack");
+  update_button_ptr->SetMinSize(
+      wxSize(MIN_BUTTON_WIDTH, 2 * update_button_ptr->GetSize().GetHeight()));
+  const auto control_flags = wxSizerFlags().Expand().Border(wxALL, BORDER_WIDTH);
+  wxFlexGridSizer* button_grid_ptr = new wxFlexGridSizer(1);
+  button_grid_ptr->AddGrowableCol(0);
+  button_grid_ptr->Add(install_button_ptr, control_flags);
+  button_grid_ptr->Add(update_button_ptr, control_flags);
+  wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
+  const auto padder_flags = wxSizerFlags().Expand().Border(wxALL, BORDER_WIDTH);
+  padder_ptr->Add(button_grid_ptr, padder_flags);
+  SetSizer(padder_ptr);
+}
+
 GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(parent)
 {
   constexpr int BORDER_WIDTH = 10;
+  constexpr int MIN_BUTTON_WIDTH = 300;
   wxStaticText* header_text_ptr = new wxStaticText(
       this, wxID_ANY, "Use this utility to create Minecraft Launcher profiles for modpacks.");
   header_text_ptr->SetFont(header_text_ptr->GetFont().Bold());
@@ -193,7 +347,8 @@ GuiPanelModpackInstall::GuiPanelModpackInstall(wxWindow* parent) : wxPanel(paren
   icon_choice_ptr_->Select(random_index);
   wxButton* install_button_ptr = new wxButton(this, ID_DO_MODPACK_INSTALL, "Install Modpack");
   // Make the button double the height
-  install_button_ptr->SetMinSize(wxSize(100, 2 * install_button_ptr->GetSize().GetHeight()));
+  install_button_ptr->SetMinSize(
+      wxSize(MIN_BUTTON_WIDTH, 2 * install_button_ptr->GetSize().GetHeight()));
   const auto header_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
   const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
   const auto control_flags = wxSizerFlags().Expand().Border(wxALL, BORDER_WIDTH);
@@ -227,6 +382,63 @@ ModpackInstallData GuiPanelModpackInstall::GetData() const
       path_picker_ptr_->GetPath().ToStdString(),
       name_textbox_ptr_->GetValue().Strip(wxString::both).ToStdString(),
       icon_choice_ptr_->GetString(icon_choice_ptr_->GetSelection()).ToStdString(),
+  };
+}
+
+GuiPanelModpackUpdate::GuiPanelModpackUpdate(wxWindow* parent) : wxPanel(parent)
+{
+  constexpr int BORDER_WIDTH = 10;
+  constexpr int MIN_BUTTON_WIDTH = 300;
+  wxStaticText* header_text_ptr = new wxStaticText(
+      this, wxID_ANY, "Use this utility to update Minecraft Launcher profiles for modpacks.");
+  header_text_ptr->SetFont(header_text_ptr->GetFont().Bold());
+  wxStaticText* info_text_ptr = new wxStaticText(
+      this, wxID_ANY, "Mods and configs will be updated, saves will not be modified.\n");
+  wxStaticText* path_text_ptr = new wxStaticText(this, wxID_ANY, "Modpack Zip");
+  wxStaticText* profile_text_ptr = new wxStaticText(this, wxID_ANY, "Profile");
+  path_picker_ptr_ = new wxFilePickerCtrl(this, wxID_ANY);
+  profile_choice_ptr_ = new wxChoice(this, wxID_ANY);
+  std::error_code ec;  // But actually just ignore any errors
+  profile_datas_ = GetInstalledProfiles(&ec);
+  const std::vector<std::string> profiles = GetUniqueProfileNames(profile_datas_);
+  for (const auto& profile : profiles) {
+    profile_choice_ptr_->Append(profile);
+  }
+  profile_choice_ptr_->Select(0);
+  wxButton* update_button_ptr = new wxButton(this, ID_DO_MODPACK_UPDATE, "Update Modpack");
+  // Make the button double the height
+  update_button_ptr->SetMinSize(
+      wxSize(MIN_BUTTON_WIDTH, 2 * update_button_ptr->GetSize().GetHeight()));
+  const auto header_flags = wxSizerFlags().Center().Border(wxALL, BORDER_WIDTH);
+  const auto text_flags = wxSizerFlags().Align(wxALIGN_CENTER_VERTICAL).Border(wxALL, BORDER_WIDTH);
+  const auto control_flags = wxSizerFlags().Expand().Border(wxALL, BORDER_WIDTH);
+  wxFlexGridSizer* info_grid_ptr = new wxFlexGridSizer(1);
+  info_grid_ptr->AddGrowableCol(0);
+  info_grid_ptr->Add(header_text_ptr, header_flags);
+  info_grid_ptr->Add(info_text_ptr, header_flags);
+  wxFlexGridSizer* field_grid_ptr = new wxFlexGridSizer(2);
+  field_grid_ptr->AddGrowableCol(1);
+  field_grid_ptr->Add(path_text_ptr, text_flags);
+  field_grid_ptr->Add(path_picker_ptr_, control_flags);
+  field_grid_ptr->Add(profile_text_ptr, text_flags);
+  field_grid_ptr->Add(profile_choice_ptr_, control_flags);
+  wxFlexGridSizer* button_grid_ptr = new wxFlexGridSizer(1);
+  button_grid_ptr->AddGrowableCol(0);
+  button_grid_ptr->Add(update_button_ptr, control_flags);
+  wxFlexGridSizer* padder_ptr = new wxFlexGridSizer(1);
+  const auto top_flags = wxSizerFlags().Expand().Border(wxALL & ~wxBOTTOM, BORDER_WIDTH);
+  const auto bottom_flags = wxSizerFlags().Expand().Border(wxALL & ~wxTOP, BORDER_WIDTH);
+  padder_ptr->Add(info_grid_ptr, top_flags);
+  padder_ptr->Add(field_grid_ptr, bottom_flags);
+  padder_ptr->Add(button_grid_ptr, bottom_flags);
+  SetSizer(padder_ptr);
+}
+
+ModpackUpdateData GuiPanelModpackUpdate::GetData() const
+{
+  return ModpackUpdateData{
+      path_picker_ptr_->GetPath().ToStdString(),
+      profile_datas_.at(profile_choice_ptr_->GetSelection()).id,
   };
 }
 
@@ -323,6 +535,21 @@ void OpenUrlInBrowser(const char* const url)
   wxExecute(command);
 }
 
+std::vector<std::string> GetUniqueProfileNames(const std::vector<ProfileData>& profile_datas)
+{
+  // TODO Make sure these strings are actually unique
+  std::vector<std::string> profile_names;
+  for (const ProfileData& profile_data : profile_datas) {
+    const std::string profile_name = profile_data.name_opt.value_or("");
+    const std::string name_part = (!profile_name.empty() ? profile_name : "<Unnamed Profile>");
+    // The "Furnace" is apparently the default when no icon is set
+    const std::string profile_icon = profile_data.icon_opt.value_or("");
+    const std::string icon_part = (!profile_icon.empty() ? profile_icon : "<No Icon>");
+    profile_names.push_back(name_part + " (" + icon_part + ")");
+  }
+  return profile_names;
+}
+
 const wxBitmap& GetTrollfaceIcon16x16()
 {
   static wxMemoryInputStream trollface_mem(
@@ -341,26 +568,6 @@ const wxBitmap& GetTrollfaceIcon16x16()
   return trollface_bitmap;
 }
 
-wxIMPLEMENT_WX_THEME_SUPPORT wxIMPLEMENT_APP_NO_MAIN(GuiApp);
-
 }  // namespace
-
-int GuiMain(const int, const char* const[])
-{
-  wxInitializer initializer(0, static_cast<char**>(nullptr));
-  if (!initializer.IsOk()) {
-    return 1;
-  }
-  if (!wxGetApp().CallOnInit()) {
-    return 1;
-  }
-  struct Exiter {
-    ~Exiter()
-    {
-      wxGetApp().OnExit();
-    }
-  } exiter;
-  return wxGetApp().OnRun();
-}
 
 }  // namespace tl
