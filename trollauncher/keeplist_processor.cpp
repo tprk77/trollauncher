@@ -40,6 +40,10 @@ static const std::vector<std::regex> default_keep_regexes = {
     // Xaero map data
     std::regex("^XaeroWaypoints/"),
     std::regex("^XaeroWorldMap/"),
+    // Anything Git related
+    std::regex("^.git/"),
+    std::regex("^.gitignore"),
+    std::regex("^.gitmodules"),
 };
 
 }  // namespace
