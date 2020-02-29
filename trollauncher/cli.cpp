@@ -70,6 +70,7 @@ std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool
 int InstallCli(const InstallArgs& install_args);
 int UpdateCli(const UpdateArgs& update_args);
 int ListCli(const ListArgs& list_args);
+void UpperFirstChar(std::string* string_ptr);
 std::string QuotedStringOrNull(const std::optional<std::string>& str_opt);
 std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt);
 void OutputYaml(const std::vector<ProfileData>& profile_datas);
@@ -231,6 +232,7 @@ std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args
   catch (const bpo::error& ex) {
     if (error_string_ptr != nullptr) {
       *error_string_ptr = ex.what();
+      UpperFirstChar(error_string_ptr);
     }
     return std::nullopt;
   }
@@ -285,6 +287,7 @@ std::optional<UpdateArgs> ParseUpdateArgs(const std::vector<std::string>& args,
   catch (const bpo::error& ex) {
     if (error_string_ptr != nullptr) {
       *error_string_ptr = ex.what();
+      UpperFirstChar(error_string_ptr);
     }
     return std::nullopt;
   }
@@ -339,6 +342,7 @@ std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool
   catch (const bpo::error& ex) {
     if (error_string_ptr != nullptr) {
       *error_string_ptr = ex.what();
+      UpperFirstChar(error_string_ptr);
     }
     return std::nullopt;
   }
@@ -421,6 +425,10 @@ int ListCli(const ListArgs& list_args)
     break;
   }
   return 0;
+}
+
+void UpperFirstChar(std::string* string_ptr) {
+  (*string_ptr)[0] = std::toupper(static_cast<unsigned char>((*string_ptr)[0]));
 }
 
 std::string QuotedStringOrNull(const std::optional<std::string>& str_opt)
