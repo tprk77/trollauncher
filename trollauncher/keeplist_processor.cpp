@@ -28,10 +28,12 @@ namespace fs = std::filesystem;
 
 static const std::vector<std::regex> default_keep_regexes = {
     // Minecraft data
+    std::regex("^crash-reports/"),
     std::regex("^logs/"),
-    std::regex("^options.txt"),
     std::regex("^resourcepacks/"),
     std::regex("^saves/"),
+    std::regex("^hotbar.nbt"),
+    std::regex("^options.txt"),
     std::regex("^servers.dat"),
     std::regex("^usercache.json"),
     std::regex("^usernamecache.json"),
