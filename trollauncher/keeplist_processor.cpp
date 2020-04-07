@@ -37,6 +37,9 @@ static const std::vector<std::regex> default_keep_regexes = {
     std::regex("^servers.dat"),
     std::regex("^usercache.json"),
     std::regex("^usernamecache.json"),
+    // Optifine
+    std::regex("^shaderpacks/"),
+    std::regex("^optionsof.txt"),
     // Reauth data
     std::regex("^reauth.toml"),
     // Xaero map data
