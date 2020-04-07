@@ -26,6 +26,9 @@ namespace {
 
 namespace fs = std::filesystem;
 
+// TODO With Structurize it might be good to allow updating with new schematics, but make sure not
+// to delete or overwrite user schematics? The trouble is, how would you know?
+
 static const std::vector<std::regex> default_keep_regexes = {
     // Minecraft data
     std::regex("^crash-reports/"),
@@ -45,6 +48,8 @@ static const std::vector<std::regex> default_keep_regexes = {
     // Xaero map data
     std::regex("^XaeroWaypoints/"),
     std::regex("^XaeroWorldMap/"),
+    // Structurize
+    std::regex("^structurize/"),
     // Anything Git related
     std::regex("^.git/"),
     std::regex("^.gitignore"),
