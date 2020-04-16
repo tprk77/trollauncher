@@ -232,9 +232,7 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
-  mi_ptr_->SetName(data.profile_name);
-  mi_ptr_->SetIcon(data.profile_icon);
-  if (!mi_ptr_->PrepInstall(&ec)) {
+  if (!mi_ptr_->PrepInstaller(&ec)) {
     const auto text = wxString::Format("Cannot prepare installer!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
@@ -249,7 +247,7 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
       return;
     }
   }
-  if (!mi_ptr_->Install(&ec)) {
+  if (!mi_ptr_->Install(data.profile_name, data.profile_icon, &ec)) {
     const auto text = wxString::Format("Cannot install modpack!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
@@ -277,7 +275,7 @@ void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
-  if (!mu_ptr_->PrepInstall(&ec)) {
+  if (!mu_ptr_->PrepInstaller(&ec)) {
     const auto text = wxString::Format("Cannot prepare installer!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;

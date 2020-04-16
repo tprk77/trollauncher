@@ -100,10 +100,6 @@ struct ModpackInstaller::Data_ {
   fs::path modpack_path;
   fs::path dot_minecraft_path;
   LauncherProfilesEditor::Ptr lpe_ptr;
-  std::string id;
-  std::string name;
-  std::string icon;
-  fs::path install_path;
   std::unique_ptr<zpp::ZipArchive> zip_ptr;
   bool is_prepped;
   ForgeInstaller::Ptr fi_ptr;
@@ -151,47 +147,23 @@ ModpackInstaller::Ptr ModpackInstaller::Create(const fs::path& modpack_path,
   mi_ptr->data_->modpack_path = modpack_path;
   mi_ptr->data_->dot_minecraft_path = dot_minecraft_path;
   mi_ptr->data_->lpe_ptr = std::move(lpe_ptr);
-  mi_ptr->data_->id = mi_ptr->data_->lpe_ptr->GetNewUniqueId();
-  mi_ptr->data_->name = mi_ptr->data_->lpe_ptr->GetNewUniqueName();
-  mi_ptr->data_->icon = "TNT";
-  mi_ptr->data_->install_path = GetDefaultInstallPath(dot_minecraft_path, mi_ptr->data_->id);
   mi_ptr->data_->zip_ptr = std::move(zip_ptr);
   mi_ptr->data_->is_prepped = false;
   mi_ptr->data_->fi_ptr = nullptr;
   return mi_ptr;
 }
 
-std::string ModpackInstaller::GetName() const
+std::string ModpackInstaller::GetUniqueProfileName() const
 {
-  return data_->name;
+  return data_->lpe_ptr->GetNewUniqueName();
 }
 
-void ModpackInstaller::SetName(const std::string& name)
+std::string ModpackInstaller::GetRandomProfileIcon() const
 {
-  data_->name = name;
+  return GetRandomIcon();
 }
 
-std::string ModpackInstaller::GetIcon() const
-{
-  return data_->icon;
-}
-
-void ModpackInstaller::SetIcon(const std::string& icon)
-{
-  data_->icon = icon;
-}
-
-fs::path ModpackInstaller::GetInstallPath() const
-{
-  return data_->install_path;
-}
-
-void ModpackInstaller::SetInstallPath(const fs::path& install_path)
-{
-  data_->install_path = install_path;
-}
-
-bool ModpackInstaller::PrepInstall(std::error_code* ec)
+bool ModpackInstaller::PrepInstaller(std::error_code* ec)
 {
   std::optional<fs::path> temp_path_opt = CreateTempDir();
   if (!temp_path_opt) {
@@ -222,27 +194,37 @@ std::optional<bool> ModpackInstaller::IsForgeInstalled()
   return data_->fi_ptr->IsInstalled();
 }
 
-bool ModpackInstaller::Install(std::error_code* ec)
+bool ModpackInstaller::Install(const std::string& profile_name, const std::string& profile_icon,
+                               std::error_code* ec)
+{
+  const std::string profile_id = data_->lpe_ptr->GetNewUniqueId();
+  const fs::path install_path = GetDefaultInstallPath(data_->dot_minecraft_path, profile_id);
+  return Install(profile_id, profile_name, profile_icon, install_path, ec);
+}
+
+bool ModpackInstaller::Install(const std::string& profile_id, const std::string& profile_name,
+                               const std::string& profile_icon, const fs::path& install_path,
+                               std::error_code* ec)
 {
   std::error_code fs_ec;
-  if (!fs::exists(data_->install_path)) {
-    fs::create_directories(data_->install_path, fs_ec);
+  if (!fs::exists(install_path)) {
+    fs::create_directories(install_path, fs_ec);
     if (fs_ec) {
       SetError(ec, Error::MODPACK_DESTINATION_CREATION_FAILED);
       return false;
     }
   }
-  if (!fs::is_directory(data_->install_path)) {
+  if (!fs::is_directory(install_path)) {
     SetError(ec, Error::MODPACK_DESTINATION_NOT_DIRECTORY);
     return false;
   }
-  const auto modpack_dir_iter = fs::directory_iterator(data_->install_path);
+  const auto modpack_dir_iter = fs::directory_iterator(install_path);
   if (begin(modpack_dir_iter) != end(modpack_dir_iter)) {
     SetError(ec, Error::MODPACK_DESTINATION_NOT_EMPTY);
     return false;
   }
   // Step 0: Prep install
-  if (!data_->is_prepped && !PrepInstall(ec)) {
+  if (!data_->is_prepped && !PrepInstaller(ec)) {
     return false;
   }
   // Step 1: Install Forge
@@ -256,15 +238,15 @@ bool ModpackInstaller::Install(std::error_code* ec)
   }
   // Step 2: Extract modpack
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  if (!ExtractAll(data_->zip_ptr.get(), data_->install_path, tl_dir_opt)) {
+  if (!ExtractAll(data_->zip_ptr.get(), install_path, tl_dir_opt)) {
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   // Step 3: Write profile
   const std::string forge_version = data_->fi_ptr->GetForgeVersion();
   const std::optional<fs::path> java_path_opt = JavaDetector::GetJavaVersion8();
-  if (!data_->lpe_ptr->WriteProfile(data_->id, data_->name, data_->icon, forge_version,
-                                    data_->install_path, java_path_opt, ec)) {
+  if (!data_->lpe_ptr->WriteProfile(profile_id, profile_name, profile_icon, forge_version,
+                                    install_path, java_path_opt, ec)) {
     return false;
   }
   return true;
@@ -330,7 +312,7 @@ ModpackUpdater::Ptr ModpackUpdater::Create(const std::string profile_id,
   return mu_ptr;
 }
 
-bool ModpackUpdater::PrepInstall(std::error_code* ec)
+bool ModpackUpdater::PrepInstaller(std::error_code* ec)
 {
   std::optional<fs::path> temp_path_opt = CreateTempDir();
   if (!temp_path_opt) {
@@ -383,7 +365,7 @@ bool ModpackUpdater::Update(std::error_code* ec)
     return false;
   }
   // Step 0: Prep install
-  if (!data_->is_prepped && !PrepInstall(ec)) {
+  if (!data_->is_prepped && !PrepInstaller(ec)) {
     return false;
   }
   // Step 1: Get existing files not in the keeplist

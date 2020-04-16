@@ -323,7 +323,13 @@ std::string GetRandomName()
   return big_list_o_rocks.at(rand_rock_index) + " " + std::to_string(rand_number);
 }
 
-std::vector<std::string> GetDefaultLauncherIcons()
+std::string GetRandomIcon()
+{
+  const int rand_ico_index = std::rand() % default_launcher_icons.size();
+  return default_launcher_icons.at(rand_ico_index);
+}
+
+const std::vector<std::string>& GetDefaultLauncherIcons()
 {
   return default_launcher_icons;
 }

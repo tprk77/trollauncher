@@ -36,8 +36,8 @@ namespace bpo = boost::program_options;
 
 struct InstallArgs {
   std::string modpack_path;
-  std::string profile_name;
-  std::string profile_icon;
+  std::optional<std::string> profile_name_opt;
+  std::optional<std::string> profile_icon_opt;
 };
 
 struct UpdateArgs {
@@ -253,8 +253,12 @@ std::optional<InstallArgs> ParseInstallArgs(const std::vector<std::string>& args
   }
   InstallArgs install_args;
   install_args.modpack_path = vm.at("path").as<std::string>();
-  install_args.profile_name = (vm.count("name") != 0 ? vm.at("name").as<std::string>() : "");
-  install_args.profile_icon = (vm.count("icon") != 0 ? vm.at("icon").as<std::string>() : "");
+  if (vm.count("name")) {
+    install_args.profile_name_opt = vm.at("name").as<std::string>();
+  }
+  if (vm.count("icon")) {
+    install_args.profile_icon_opt = vm.at("icon").as<std::string>();
+  }
   return install_args;
 }
 
@@ -375,18 +379,15 @@ int InstallCli(const InstallArgs& install_args)
     std::cerr << "Error: " << ec.message() << "\n";
     return 1;
   }
-  if (!install_args.profile_name.empty()) {
-    mi_ptr->SetName(install_args.profile_name);
-  }
-  if (!install_args.profile_icon.empty()) {
-    mi_ptr->SetIcon(install_args.profile_icon);
-  }
-  if (!mi_ptr->Install(&ec)) {
+  const std::string profile_name =
+      install_args.profile_name_opt.value_or(mi_ptr->GetUniqueProfileName());
+  const std::string profile_icon =
+      install_args.profile_icon_opt.value_or(mi_ptr->GetRandomProfileIcon());
+  if (!mi_ptr->Install(profile_name, profile_icon, &ec)) {
     std::cerr << "Error: " << ec.message() << "\n";
     return 1;
   }
-  std::cerr << "Created profile '" << mi_ptr->GetName()  //
-            << "' with icon '" << mi_ptr->GetIcon() << "'\n";
+  std::cerr << "Created profile '" << profile_name << "' with icon '" << profile_icon << "'\n";
   std::cerr << "Modpack installed successfully!\n";
   return 0;
 }

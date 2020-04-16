@@ -40,19 +40,17 @@ class ModpackInstaller final {
   static Ptr Create(const std::filesystem::path& modpack_path,
                     const std::filesystem::path& dot_minecraft_path, std::error_code* ec);
 
-  std::string GetName() const;
-  void SetName(const std::string& name);
+  std::string GetUniqueProfileName() const;
+  std::string GetRandomProfileIcon() const;
 
-  std::string GetIcon() const;
-  void SetIcon(const std::string& icon);
-
-  std::filesystem::path GetInstallPath() const;
-  void SetInstallPath(const std::filesystem::path& install_path);
-
-  bool PrepInstall(std::error_code* ec);
+  bool PrepInstaller(std::error_code* ec);
   std::optional<bool> IsForgeInstalled();
 
-  bool Install(std::error_code* ec);
+  bool Install(const std::string& profile_name, const std::string& profile_icon,
+               std::error_code* ec);
+  bool Install(const std::string& profile_id, const std::string& profile_name,
+               const std::string& profile_icon, const std::filesystem::path& install_path,
+               std::error_code* ec);
 
  private:
   ModpackInstaller();
@@ -70,7 +68,7 @@ class ModpackUpdater final {
   static Ptr Create(const std::string profile_id, const std::filesystem::path& modpack_path,
                     const std::filesystem::path& dot_minecraft_path, std::error_code* ec);
 
-  bool PrepInstall(std::error_code* ec);
+  bool PrepInstaller(std::error_code* ec);
   std::optional<bool> IsForgeInstalled();
 
   bool Update(std::error_code* ec);

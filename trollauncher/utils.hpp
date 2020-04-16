@@ -33,7 +33,8 @@ std::optional<std::string> GetEnvironmentVar(const std::string& name);
 std::optional<std::filesystem::path> CreateTempDir();
 std::string GetRandomId();
 std::string GetRandomName();
-std::vector<std::string> GetDefaultLauncherIcons();
+std::string GetRandomIcon();
+const std::vector<std::string>& GetDefaultLauncherIcons();
 
 }  // namespace tl
 
