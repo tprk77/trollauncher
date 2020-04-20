@@ -44,6 +44,7 @@ static const std::vector<std::regex> default_keep_regexes = {
     // Optifine
     std::regex("^shaderpacks/"),
     std::regex("^optionsof.txt"),
+    std::regex("^optionsshaders.txt"),
     // Reauth data
     std::regex("^reauth.toml"),
     // Xaero map data
