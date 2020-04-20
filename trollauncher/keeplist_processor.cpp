@@ -35,6 +35,7 @@ static const std::vector<std::regex> default_keep_regexes = {
     std::regex("^logs/"),
     std::regex("^resourcepacks/"),
     std::regex("^saves/"),
+    std::regex("^screenshots/"),
     std::regex("^hotbar.nbt"),
     std::regex("^options.txt"),
     std::regex("^servers.dat"),
