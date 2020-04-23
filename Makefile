@@ -22,3 +22,11 @@ rbuild:
 
 clean:
 	-rm -rf build rbuild
+
+BUILD_DEPENDS := python3-pip ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev
+
+depends:
+	sudo apt-get install $(BUILD_DEPENDS) # UBUNTU ONLY
+	sudo -H pip3 install meson # UBUNTU ONLY
+
+.PHONY: all release install clean depends
