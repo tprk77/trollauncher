@@ -134,33 +134,32 @@ If you're a programmer, you can build Trollauncher yourself.
 
 ### Building On Ubuntu ###
 
-* `apt-get install build-essential`
-* `apt-get install python3-pip`
-* `pip3 install meson`
-* `apt-get install ninja-build`
-* `apt-get install libboost-all-dev`
-* `apt-get install libzip-dev`
-* `apt-get install libwxgtk3.0-dev`
-* `cd trollauncher`
-* `meson build`
-* `ninja -C build`
+```
+$ sudo apt-get update
+$ sudo apt-get install build-essential python3-pip ninja-build \
+    libboost-all-dev libzip-dev libwxgtk3.0-dev
+$ sudo -H pip3 install meson
+$ cd trollauncher
+$ meson build
+$ ninja -C build
+```
 
 ### Building On Windows ###
 
-* Install MSYS2
-* Start the MSYS2 MINGW64 Shell
-* `pacman -Syu`
-* `pacman -Syu` (again)
-* `pacman -S mingw64/mingw-w64-x86_64-toolchain`
-* `pacman -S mingw64/mingw-w64-x86_64-python-pip`
-* `pip3 install meson`
-* `pacman -S mingw64/mingw-w64-x86_64-ninja`
-* `pacman -S mingw64/mingw-w64-x86_64-boost`
-* `pacman -S mingw64/mingw-w64-x86_64-libzip`
-* `pacman -S mingw64/mingw-w64-x86_64-wxWidgets`
-* `cd trollauncher`
-* `meson build`
-* `ninja -C build`
+First install MSYS2, and start the MSYS2 MINGW64 Shell.
+
+```
+$ pacman -Syu
+$ pacman -Syu  # Yes, do it twice!
+$ pacman -S mingw64/mingw-w64-x86_64-toolchain \
+    mingw64/mingw-w64-x86_64-python-pip mingw64/mingw-w64-x86_64-ninja \
+    mingw64/mingw-w64-x86_64-boost mingw64/mingw-w64-x86_64-libzip \
+    mingw64/mingw-w64-x86_64-wxWidgets
+$ pip3 install meson
+$ cd trollauncher
+$ meson build
+$ ninja -C build
+```
 
 ## License ##
 
