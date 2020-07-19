@@ -6,3 +6,7 @@
 /subprojects/nlohmann_json-3.7.0/
 /package/linux/trollauncher_*.deb
 /package/linux/trollauncher_*/
+
+# For CCLS
+/.ccls-cache/
+/compile_commands.json
