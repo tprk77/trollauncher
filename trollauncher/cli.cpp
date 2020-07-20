@@ -428,7 +428,8 @@ int ListCli(const ListArgs& list_args)
   return 0;
 }
 
-void UpperFirstChar(std::string* string_ptr) {
+void UpperFirstChar(std::string* string_ptr)
+{
   (*string_ptr)[0] = std::toupper(static_cast<unsigned char>((*string_ptr)[0]));
 }
 
