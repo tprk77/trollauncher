@@ -136,10 +136,16 @@ std::optional<ProfileData> LauncherProfilesEditor::GetProfile(const std::string&
 
 std::vector<ProfileData> LauncherProfilesEditor::GetProfiles() const
 {
-  std::vector<ProfileData> profile_datas;
-  for (const auto& [_, profile_data] : data_->profile_data_map) {
-    profile_datas.push_back(profile_data);
+  // Put the profiles into a vector as pairs, so they can be sorted
+  std::vector<std::pair<std::string, ProfileData>> profile_ids_and_datas;
+  for (const auto& [profile_id, profile_data] : data_->profile_data_map) {
+    profile_ids_and_datas.push_back(std::make_pair(profile_id, profile_data));
   }
+  // // Output will be sorted in order of "lastUsed" time
+  // std::sort(profile_ids_and_datas.begin(), profile_ids_and_datas.end(),
+  //           [](const std::pair<std::string, ProfileData>& aa,
+  //              const std::pair<std::string, ProfileData>& bb) { return std::get<1>(aa). });
+  std::vector<ProfileData> profile_datas;
   return profile_datas;
 }
 
@@ -251,8 +257,28 @@ bool LauncherProfilesEditor::WriteProfile(const std::string& id, const std::stri
 
 namespace {
 
+std::chrono::system_clock::time_point TimeFromString(const std::string& time_str)
+{
+  // TODO Strip of any fractional seconds, i.e., ".000Z"
+  std::tm tp_tm;
+  strptime(time_str.c_str(), "%Y-%m-%dT%H:%M:%S",
+           &tp_tm);  // TODO Is this going to work on Windows?
+  const std::time_t tp_time_t = std::mktime(&tp_tm);
+  return std::chrono::system_clock::from_time_t(tp_time_t);
+}
+
+std::string StringFromTime(const std::chrono::system_clock::time_point& time_point)
+{
+  (void) TimeFromString;
+  const std::time_t tp_time_t = std::chrono::system_clock::to_time_t(time_point);
+  char time_c_str[sizeof "0000-00-00T00:00:00.000Z"];
+  std::strftime(time_c_str, sizeof time_c_str, "%Y-%m-%dT%H:%M:%S.000Z", std::gmtime(&tp_time_t));
+  return time_c_str;
+}
+
 std::string GetCurrentTimeAsString(std::optional<std::chrono::seconds> time_modifier_opt)
 {
+  (void) StringFromTime;
   const auto now_chrono = std::chrono::system_clock::now();
   std::time_t now_time_t = std::chrono::system_clock::to_time_t(
       now_chrono + time_modifier_opt.value_or(std::chrono::seconds(0)));

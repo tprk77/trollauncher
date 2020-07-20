@@ -36,7 +36,8 @@ struct ProfileData {
   std::optional<std::string> version_opt;
   std::optional<std::filesystem::path> game_path_opt;
   std::optional<std::filesystem::path> java_path_opt;
-  // TODO Add timestamps
+  std::optional<std::filesystem::path> created_opt;
+  std::optional<std::filesystem::path> last_used_opt;
 };
 
 }  // namespace tl
