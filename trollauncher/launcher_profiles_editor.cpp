@@ -150,6 +150,20 @@ std::vector<ProfileData> LauncherProfilesEditor::GetProfiles() const
   for (const auto& [_, profile_data] : data_->profile_data_map) {
     profile_datas.push_back(profile_data);
   }
+  // Negate the comparison to reverse the order of the list as we sort
+  const auto last_used_comp = [](const ProfileData& aa, const ProfileData& bb) {
+    if (aa.last_used_time_opt.has_value() && bb.last_used_time_opt.has_value()) {
+      return aa.last_used_time_opt.value() >= bb.last_used_time_opt.value();
+    }
+    else if (!aa.last_used_time_opt.has_value() && bb.last_used_time_opt.has_value()) {
+      return false;
+    }
+    else if (aa.last_used_time_opt.has_value() && !bb.last_used_time_opt.has_value()) {
+      return true;
+    }
+    return aa.id >= bb.id;
+  };
+  std::sort(profile_datas.begin(), profile_datas.end(), last_used_comp);
   return profile_datas;
 }
 
