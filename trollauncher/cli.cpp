@@ -26,6 +26,7 @@
 #include <boost/program_options.hpp>
 
 #include "trollauncher/modpack_installer.hpp"
+#include "trollauncher/utils.hpp"
 
 namespace tl {
 
@@ -73,6 +74,8 @@ int ListCli(const ListArgs& list_args);
 void UpperFirstChar(std::string* string_ptr);
 std::string QuotedStringOrNull(const std::optional<std::string>& str_opt);
 std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt);
+std::string QuotedStringOrNull(
+    const std::optional<std::chrono::system_clock::time_point>& time_opt);
 void OutputYaml(const std::vector<ProfileData>& profile_datas);
 void OutputCsv(const std::vector<ProfileData>& profile_datas, const std::string& delim);
 
@@ -453,6 +456,16 @@ std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt)
   return ss.str();
 }
 
+std::string QuotedStringOrNull(const std::optional<std::chrono::system_clock::time_point>& time_opt)
+{
+  if (!time_opt) {
+    return "null";
+  }
+  std::stringstream ss;
+  ss << std::quoted(StringFromTime(time_opt.value()));
+  return ss.str();
+}
+
 void OutputYaml(const std::vector<ProfileData>& profile_datas)
 {
   for (const ProfileData& profile_data : profile_datas) {
@@ -463,6 +476,9 @@ void OutputYaml(const std::vector<ProfileData>& profile_datas)
     std::cout << "  version: " << QuotedStringOrNull(profile_data.version_opt) << "\n";
     std::cout << "  game_path: " << QuotedStringOrNull(profile_data.game_path_opt) << "\n";
     std::cout << "  java_path: " << QuotedStringOrNull(profile_data.java_path_opt) << "\n";
+    std::cout << "  created_time: " << QuotedStringOrNull(profile_data.created_time_opt) << "\n";
+    std::cout << "  last_used_time: " << QuotedStringOrNull(profile_data.last_used_time_opt)
+              << "\n";
   }
 }
 
