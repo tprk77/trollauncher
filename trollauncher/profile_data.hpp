@@ -19,6 +19,7 @@
 #ifndef TROLLAUNCHER_PROFILE_DATA_HPP_
 #define TROLLAUNCHER_PROFILE_DATA_HPP_
 
+#include <chrono>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -36,7 +37,8 @@ struct ProfileData {
   std::optional<std::string> version_opt;
   std::optional<std::filesystem::path> game_path_opt;
   std::optional<std::filesystem::path> java_path_opt;
-  // TODO Add timestamps
+  std::optional<std::chrono::system_clock::time_point> created_time_opt;
+  std::optional<std::chrono::system_clock::time_point> last_used_time_opt;
 };
 
 }  // namespace tl
