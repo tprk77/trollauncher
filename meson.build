@@ -74,17 +74,22 @@ libzippp_dep = dependency(
   include_type : 'system'
 )
 
+# Using "as_system('system')" as a work-around for Meson weirdness, where it
+# doesn't seem to respect the "include_type : 'system'" option.
+#
+# See also: https://github.com/mesonbuild/meson/issues/7503
+
 nlohmann_json_dep = dependency(
   'nlohmann_json',
   fallback : ['nlohmann_json', 'nlohmann_json_dep'],
   include_type : 'system'
-)
+).as_system('system')
 
 date_dep = dependency(
   'date',
   fallback : ['date', 'date_dep'],
   include_type : 'system'
-)
+).as_system('system')
 
 wxwidgets_dep = dependency(
   'wxwidgets',
