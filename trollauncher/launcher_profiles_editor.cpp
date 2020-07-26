@@ -100,6 +100,8 @@ bool LauncherProfilesEditor::Refresh(std::error_code* ec)
     const nl::json version_json = profile_json.value("lastVersionId", nl::json(nullptr));
     const nl::json game_path_json = profile_json.value("gameDir", nl::json(nullptr));
     const nl::json java_path_json = profile_json.value("javaDir", nl::json(nullptr));
+    const nl::json created_time_json = profile_json.value("created", nl::json(nullptr));
+    const nl::json last_used_time_json = profile_json.value("lastUsed", nl::json(nullptr));
     ProfileData profile_data;
     profile_data.id = profile_id;
     if (name_json.is_string()) {
@@ -119,6 +121,14 @@ bool LauncherProfilesEditor::Refresh(std::error_code* ec)
     }
     if (java_path_json.is_string()) {
       profile_data.java_path_opt = java_path_json.get<std::string>();
+    }
+    if (created_time_json.is_string()) {
+      const std::string created_time_str = created_time_json.get<std::string>();
+      profile_data.created_time_opt = TimeFromString(created_time_json);
+    }
+    if (last_used_time_json.is_string()) {
+      const std::string last_used_time_str = last_used_time_json.get<std::string>();
+      profile_data.last_used_time_opt = TimeFromString(last_used_time_json);
     }
     data_->profile_data_map.emplace(profile_id, profile_data);
   }
@@ -253,12 +263,8 @@ namespace {
 
 std::string GetCurrentTimeAsString(std::optional<std::chrono::seconds> time_modifier_opt)
 {
-  const auto now_chrono = std::chrono::system_clock::now();
-  std::time_t now_time_t = std::chrono::system_clock::to_time_t(
-      now_chrono + time_modifier_opt.value_or(std::chrono::seconds(0)));
-  char time_c_str[sizeof "0000-00-00T00:00:00.000Z"];
-  std::strftime(time_c_str, sizeof time_c_str, "%Y-%m-%dT%H:%M:%S.000Z", std::gmtime(&now_time_t));
-  return time_c_str;
+  const auto now_time = std::chrono::system_clock::now();
+  return StringFromTime(now_time + time_modifier_opt.value_or(std::chrono::seconds(0)));
 }
 
 bool IsFileWritable(const fs::path& path)
