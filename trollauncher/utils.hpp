@@ -19,6 +19,7 @@
 #ifndef TROLLAUNCHER_UTILS_HPP_
 #define TROLLAUNCHER_UTILS_HPP_
 
+#include <chrono>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -35,6 +36,8 @@ std::string GetRandomId();
 std::string GetRandomName();
 std::string GetRandomIcon();
 const std::vector<std::string>& GetDefaultLauncherIcons();
+std::optional<std::chrono::system_clock::time_point> TimeFromString(const std::string& time_str);
+std::string StringFromTime(const std::chrono::system_clock::time_point& time_point);
 
 }  // namespace tl
 

@@ -20,6 +20,7 @@
 
 #include <cstdlib>
 
+#include <date/date.h>
 #include <boost/filesystem.hpp>
 
 namespace tl {
@@ -332,6 +333,22 @@ std::string GetRandomIcon()
 const std::vector<std::string>& GetDefaultLauncherIcons()
 {
   return default_launcher_icons;
+}
+
+std::optional<std::chrono::system_clock::time_point> TimeFromString(const std::string& time_str)
+{
+  std::chrono::system_clock::time_point time_point;
+  std::istringstream isstream(time_str);
+  isstream >> date::parse("%Y-%m-%dT%H:%M:%SZ", time_point);
+  if (isstream.fail() || isstream.bad()) {
+    return std::nullopt;
+  }
+  return time_point;
+}
+
+std::string StringFromTime(const std::chrono::system_clock::time_point& time_point)
+{
+  return date::format("%Y-%m-%dT%H:%M:%SZ", date::floor<std::chrono::milliseconds>(time_point));
 }
 
 }  // namespace tl
