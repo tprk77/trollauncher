@@ -23,6 +23,7 @@
 #include <wx/filepicker.h>
 #include <wx/mimetype.h>
 #include <wx/mstream.h>
+#include <wx/progdlg.h>
 #include <wx/utils.h>
 #include <wx/wx.h>
 
@@ -120,6 +121,11 @@ constexpr int ID_GOTO_FORGE_PATREON = 2;
 class GuiDialogForgeNotice : public wxDialog {
  public:
   GuiDialogForgeNotice(wxWindow* parent);
+};
+
+class GuiDialogProgress : public wxProgressDialog {
+ public:
+  GuiDialogProgress(wxWindow* parent);
 };
 
 void OpenUrlInBrowser(const char* const url);
@@ -247,7 +253,11 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
       return;
     }
   }
-  if (!mi_ptr_->Install(data.profile_name, data.profile_icon, &ec)) {
+  GuiDialogProgress update_progress_dialog(this);
+  auto progress_func = [&update_progress_dialog](std::size_t percent, const std::string& message) {
+    update_progress_dialog.Update(percent, message);
+  };
+  if (!mi_ptr_->Install(data.profile_name, data.profile_icon, &ec, progress_func)) {
     const auto text = wxString::Format("Cannot install modpack!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
@@ -290,7 +300,11 @@ void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
       return;
     }
   }
-  if (!mu_ptr_->Update(&ec)) {
+  GuiDialogProgress update_progress_dialog(this);
+  auto progress_func = [&update_progress_dialog](std::size_t percent, const std::string& message) {
+    update_progress_dialog.Update(percent, message);
+  };
+  if (!mu_ptr_->Update(&ec, progress_func)) {
     const auto text = wxString::Format("Cannot update modpack!\n\n%s.", ec.message());
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
@@ -522,6 +536,15 @@ GuiDialogForgeNotice::GuiDialogForgeNotice(wxWindow* parent) : wxDialog(parent, 
   SetMaxSize(GetSize());
   // Cancel on close, etc
   SetEscapeId(wxID_CANCEL);
+}
+
+GuiDialogProgress::GuiDialogProgress(wxWindow* parent)
+    : wxProgressDialog("Progress", "...", 100, parent)
+{
+  constexpr int MIN_PROGRESS_WIDTH = 500;
+  SetSize(wxSize(MIN_PROGRESS_WIDTH, GetSize().GetHeight()));
+  SetMinSize(GetSize());
+  SetMaxSize(GetSize());
 }
 
 void OpenUrlInBrowser(const char* const url)
