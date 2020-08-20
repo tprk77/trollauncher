@@ -19,7 +19,6 @@
 #include "trollauncher/modpack_installer.hpp"
 
 #include <fstream>
-#include <iostream>
 #include <numeric>
 
 #include <libzippp.h>
@@ -47,6 +46,8 @@ namespace {
 namespace fs = std::filesystem;
 namespace nl = nlohmann;
 namespace zpp = libzippp;
+
+using PercentProgressFunc = std::function<void(std::size_t)>;
 
 class ModpackInstallerProgresser {
  public:
@@ -83,6 +84,18 @@ class ModpackUpdaterProgresser {
   ProgressFunc progress_func_;
 };
 
+class PercentProgresser {
+ public:
+  PercentProgresser(const PercentProgressFunc& progress_func, std::size_t num_total);
+  void Tick();
+
+ private:
+  PercentProgressFunc progress_func_;
+  std::size_t num_total_;
+  std::size_t num_ticked_;
+  std::size_t last_percent_;
+};
+
 std::size_t PercentInterp(std::size_t percent, std::size_t low, std::size_t high);
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
@@ -94,13 +107,18 @@ fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path);
 bool ExtractOne(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
                 const std::optional<fs::path>& add_prefix_opt, const fs::path& entry_path);
 bool ExtractAll(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
-                const std::optional<fs::path>& strip_prefix_opt);
+                const std::optional<fs::path>& strip_prefix_opt,
+                const PercentProgressFunc& progress_func);
 bool ExtractOverwrites(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
                        const std::optional<fs::path>& strip_prefix_opt,
-                       const KeeplistProcessor::Ptr& klp_ptr);
+                       const KeeplistProcessor::Ptr& klp_ptr,
+                       const PercentProgressFunc& progress_func);
 fs::path GetBackupZipPath(const fs::path& dot_minecraft_path, const std::string& id);
 bool CreateBackupZipFile(const fs::path& backup_path, const fs::path& profile_path,
-                         const std::vector<fs::path>& overwrite_paths);
+                         const std::vector<fs::path>& overwrite_paths,
+                         const PercentProgressFunc& progress_func);
+void RemoveOutdatedFiles(const fs::path& profile_path, const std::vector<fs::path>& overwrite_paths,
+                         const PercentProgressFunc& progress_func);
 
 }  // namespace
 
@@ -276,9 +294,11 @@ bool ModpackInstaller::Install(const std::string& profile_id, const std::string&
     }
   }
   // Step 2: Extract modpack
-  progresser.ExtractModpackProgress(0);
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  if (!ExtractAll(data_->zip_ptr.get(), install_path, tl_dir_opt)) {
+  const auto ex_prog_func = [&](std::size_t percent) {
+    progresser.ExtractModpackProgress(percent);
+  };
+  if (!ExtractAll(data_->zip_ptr.get(), install_path, tl_dir_opt, ex_prog_func)) {
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
@@ -387,7 +407,6 @@ std::optional<bool> ModpackUpdater::IsForgeInstalled()
 
 bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_func)
 {
-  std::error_code fs_ec;
   ModpackUpdaterProgresser progresser(progress_func);
   if (!data_->lpe_ptr->Refresh(ec)) {
     return false;
@@ -428,22 +447,23 @@ bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_fu
   const std::vector<fs::path> overwrite_paths =
       klp_ptr->FilterOverwritePaths(all_file_paths_opt.value());
   // Step 2: Create backup zip file of all outdated file
-  progresser.BackupProgress(0);
   const fs::path backup_path = GetBackupZipPath(data_->dot_minecraft_path, data_->profile_id);
-  if (!CreateBackupZipFile(backup_path, profile_path, overwrite_paths)) {
+  const auto bk_prog_func = [&](std::size_t percent) { progresser.BackupProgress(percent); };
+  if (!CreateBackupZipFile(backup_path, profile_path, overwrite_paths, bk_prog_func)) {
     SetError(ec, Error::PROFILE_BACKUP_FAILED);
     return false;
   }
   // Step 3: Delete all outdated files
-  progresser.RemoveOutdatedProgress(0);
-  for (const fs::path& overwrite_path : overwrite_paths) {
-    const fs::path full_path = profile_path / overwrite_path;
-    fs::remove(full_path, fs_ec);
-  }
+  const auto rm_prog_func = [&](std::size_t percent) {
+    progresser.RemoveOutdatedProgress(percent);
+  };
+  RemoveOutdatedFiles(profile_path, overwrite_paths, rm_prog_func);
   // Step 4: Extract new files not in the keeplist
-  progresser.ExtractModpackProgress(0);
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
-  if (!ExtractOverwrites(data_->zip_ptr.get(), profile_path, tl_dir_opt, klp_ptr)) {
+  const auto ex_prog_func = [&](std::size_t percent) {
+    progresser.ExtractModpackProgress(percent);
+  };
+  if (!ExtractOverwrites(data_->zip_ptr.get(), profile_path, tl_dir_opt, klp_ptr, ex_prog_func)) {
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
@@ -514,7 +534,7 @@ void ModpackUpdaterProgresser::BackupProgress(std::size_t percent)
 {
   if (!progress_func_) return;
   const std::size_t total_percent = PercentInterp(percent, 20, 39);
-  progress_func_(total_percent, "Backing up outdated files...");
+  progress_func_(total_percent, "Backing up outdated files... (This may take a moment)");
 }
 
 void ModpackUpdaterProgresser::RemoveOutdatedProgress(std::size_t percent)
@@ -535,6 +555,25 @@ void ModpackUpdaterProgresser::Done()
 {
   if (!progress_func_) return;
   progress_func_(100, "Done!");
+}
+
+PercentProgresser::PercentProgresser(const PercentProgressFunc& progress_func,
+                                     std::size_t num_total)
+    : progress_func_(progress_func), num_total_(num_total), num_ticked_(0), last_percent_(0)
+{
+  if (!progress_func_) return;
+  progress_func_(0);
+}
+
+void PercentProgresser::Tick()
+{
+  if (!progress_func_) return;
+  num_ticked_ = std::min(num_total_, num_ticked_ + 1);
+  const std::size_t next_percent = (100 * num_ticked_) / num_total_;
+  if (next_percent != last_percent_) {
+    progress_func_(next_percent);
+    last_percent_ = next_percent;
+  }
 }
 
 std::size_t PercentInterp(std::size_t percent, std::size_t low, std::size_t high)
@@ -689,17 +728,20 @@ bool ExtractOne(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
 }
 
 bool ExtractAll(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
-                const std::optional<fs::path>& strip_prefix_opt)
+                const std::optional<fs::path>& strip_prefix_opt,
+                const PercentProgressFunc& progress_func)
 {
-  return ExtractOverwrites(zip_ptr, extract_path, strip_prefix_opt, nullptr);
+  return ExtractOverwrites(zip_ptr, extract_path, strip_prefix_opt, nullptr, progress_func);
 }
 
 bool ExtractOverwrites(const zpp::ZipArchive* zip_ptr, const fs::path& extract_path,
                        const std::optional<fs::path>& strip_prefix_opt,
-                       const KeeplistProcessor::Ptr& klp_ptr)
+                       const KeeplistProcessor::Ptr& klp_ptr,
+                       const PercentProgressFunc& progress_func)
 {
   std::error_code fs_ec;
   const std::vector<zpp::ZipEntry> zip_entries = zip_ptr->getEntries();
+  PercentProgresser progresser(progress_func, zip_entries.size());
   for (const auto& zip_entry : zip_entries) {
     if (!zip_entry.isFile()) {
       continue;
@@ -730,6 +772,7 @@ bool ExtractOverwrites(const zpp::ZipArchive* zip_ptr, const fs::path& extract_p
     if (zip_error_code != LIBZIPPP_OK) {
       return false;
     }
+    progresser.Tick();
   }
   return true;
 }
@@ -747,9 +790,11 @@ fs::path GetBackupZipPath(const fs::path& dot_minecraft_path, const std::string&
 }
 
 bool CreateBackupZipFile(const fs::path& backup_path, const fs::path& profile_path,
-                         const std::vector<fs::path>& overwrite_paths)
+                         const std::vector<fs::path>& overwrite_paths,
+                         const PercentProgressFunc& progress_func)
 {
   std::error_code fs_ec;
+  PercentProgresser progresser(progress_func, overwrite_paths.size());
   if (fs::exists(backup_path)) {
     return false;
   }
@@ -772,7 +817,26 @@ bool CreateBackupZipFile(const fs::path& backup_path, const fs::path& profile_pa
       return false;
     }
   }
+  // TODO Note that nothing is written to disk until the zip is closed, so this
+  // is what will take up the time in this function. (Not calls to "addFile".)
+  // In later versions of Libzip we could use the function
+  // "zip_register_progress_callback_with_state", but unfortunately that's not
+  // available for the Libzip packaged with 18.04. The best solution would be to
+  // add Libzip as a subproject, but there isn't a Wrap available for it.
+  zip_ptr->close();
   return true;
+}
+
+void RemoveOutdatedFiles(const fs::path& profile_path, const std::vector<fs::path>& overwrite_paths,
+                         const PercentProgressFunc& progress_func)
+{
+  std::error_code fs_ec;
+  PercentProgresser progresser(progress_func, overwrite_paths.size());
+  for (const fs::path& overwrite_path : overwrite_paths) {
+    const fs::path full_path = profile_path / overwrite_path;
+    fs::remove(full_path, fs_ec);
+    progresser.Tick();
+  }
 }
 
 }  // namespace
