@@ -48,6 +48,42 @@ namespace fs = std::filesystem;
 namespace nl = nlohmann;
 namespace zpp = libzippp;
 
+class ModpackInstallerProgresser {
+ public:
+  ModpackInstallerProgresser(const ProgressFunc& progress_func_);
+
+  // Progress functions without a percent parameter are assumed to be called
+  // once at 0%. Calling the next function assumes 100% of the last stage.
+
+  void PrepInstallProgress();
+  void InstallForgeProgress();
+  void ExtractModpackProgress(std::size_t percent);
+  void WriteProfileProgress();
+  void Done();
+
+ private:
+  ProgressFunc progress_func_;
+};
+
+class ModpackUpdaterProgresser {
+ public:
+  ModpackUpdaterProgresser(const ProgressFunc& progress_func_);
+
+  // Progress functions without a percent parameter are assumed to be called
+  // once at 0%. Calling the next function assumes 100% of the last stage.
+
+  void PrepInstallProgress();
+  void ProcessKeeplistProgress();
+  void BackupProgress(std::size_t percent);
+  void RemoveOutdatedProgress(std::size_t percent);
+  void ExtractModpackProgress(std::size_t percent);
+  void Done();
+
+ private:
+  ProgressFunc progress_func_;
+};
+
+std::size_t PercentInterp(std::size_t percent, std::size_t low, std::size_t high);
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
 bool ProfileLooksLikeAnInstall(const ProfileData& profile_data);
@@ -195,18 +231,19 @@ std::optional<bool> ModpackInstaller::IsForgeInstalled()
 }
 
 bool ModpackInstaller::Install(const std::string& profile_name, const std::string& profile_icon,
-                               std::error_code* ec)
+                               std::error_code* ec, const ProgressFunc& progress_func)
 {
   const std::string profile_id = data_->lpe_ptr->GetNewUniqueId();
   const fs::path install_path = GetDefaultInstallPath(data_->dot_minecraft_path, profile_id);
-  return Install(profile_id, profile_name, profile_icon, install_path, ec);
+  return Install(profile_id, profile_name, profile_icon, install_path, ec, progress_func);
 }
 
 bool ModpackInstaller::Install(const std::string& profile_id, const std::string& profile_name,
                                const std::string& profile_icon, const fs::path& install_path,
-                               std::error_code* ec)
+                               std::error_code* ec, const ProgressFunc& progress_func)
 {
   std::error_code fs_ec;
+  ModpackInstallerProgresser progresser(progress_func);
   if (!fs::exists(install_path)) {
     fs::create_directories(install_path, fs_ec);
     if (fs_ec) {
@@ -224,10 +261,12 @@ bool ModpackInstaller::Install(const std::string& profile_id, const std::string&
     return false;
   }
   // Step 0: Prep install
+  progresser.PrepInstallProgress();
   if (!data_->is_prepped && !PrepInstaller(ec)) {
     return false;
   }
   // Step 1: Install Forge
+  progresser.InstallForgeProgress();
   if (!data_->fi_ptr->IsInstalled()) {
     if (!data_->fi_ptr->Install(ec)) {
       return false;
@@ -237,18 +276,21 @@ bool ModpackInstaller::Install(const std::string& profile_id, const std::string&
     }
   }
   // Step 2: Extract modpack
+  progresser.ExtractModpackProgress(0);
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
   if (!ExtractAll(data_->zip_ptr.get(), install_path, tl_dir_opt)) {
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
   // Step 3: Write profile
+  progresser.WriteProfileProgress();
   const std::string forge_version = data_->fi_ptr->GetForgeVersion();
   const std::optional<fs::path> java_path_opt = JavaDetector::GetJavaVersion8();
   if (!data_->lpe_ptr->WriteProfile(profile_id, profile_name, profile_icon, forge_version,
                                     install_path, java_path_opt, ec)) {
     return false;
   }
+  progresser.Done();
   return true;
 }
 
@@ -343,9 +385,10 @@ std::optional<bool> ModpackUpdater::IsForgeInstalled()
   return data_->fi_ptr->IsInstalled();
 }
 
-bool ModpackUpdater::Update(std::error_code* ec)
+bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_func)
 {
   std::error_code fs_ec;
+  ModpackUpdaterProgresser progresser(progress_func);
   if (!data_->lpe_ptr->Refresh(ec)) {
     return false;
   }
@@ -365,10 +408,13 @@ bool ModpackUpdater::Update(std::error_code* ec)
     return false;
   }
   // Step 0: Prep install
+  progresser.PrepInstallProgress();
   if (!data_->is_prepped && !PrepInstaller(ec)) {
     return false;
   }
+
   // Step 1: Get existing files not in the keeplist
+  progresser.ProcessKeeplistProgress();
   const auto klp_ptr = KeeplistProcessor::CreateDefault();
   if (klp_ptr == nullptr) {
     SetError(ec, Error::MODPACK_KEEPLIST_FAILED);
@@ -381,27 +427,120 @@ bool ModpackUpdater::Update(std::error_code* ec)
   }
   const std::vector<fs::path> overwrite_paths =
       klp_ptr->FilterOverwritePaths(all_file_paths_opt.value());
-  // Step 2: Create zip file of all old files
+  // Step 2: Create backup zip file of all outdated file
+  progresser.BackupProgress(0);
   const fs::path backup_path = GetBackupZipPath(data_->dot_minecraft_path, data_->profile_id);
   if (!CreateBackupZipFile(backup_path, profile_path, overwrite_paths)) {
     SetError(ec, Error::PROFILE_BACKUP_FAILED);
     return false;
   }
-  // Step 3: Delete all old files
+  // Step 3: Delete all outdated files
+  progresser.RemoveOutdatedProgress(0);
   for (const fs::path& overwrite_path : overwrite_paths) {
     const fs::path full_path = profile_path / overwrite_path;
     fs::remove(full_path, fs_ec);
   }
   // Step 4: Extract new files not in the keeplist
+  progresser.ExtractModpackProgress(0);
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
   if (!ExtractOverwrites(data_->zip_ptr.get(), profile_path, tl_dir_opt, klp_ptr)) {
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
+  progresser.Done();
   return true;
 }
 
 namespace {
+
+ModpackInstallerProgresser::ModpackInstallerProgresser(const ProgressFunc& progress_func)
+    : progress_func_(progress_func)
+{
+  if (!progress_func_) return;
+  progress_func_(0, "Starting modpack install...");
+}
+
+void ModpackInstallerProgresser::PrepInstallProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(0, "Prepping install...");
+}
+
+void ModpackInstallerProgresser::InstallForgeProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(10, "Installing Forge...");
+}
+
+void ModpackInstallerProgresser::ExtractModpackProgress(std::size_t percent)
+{
+  if (!progress_func_) return;
+  const std::size_t total_percent = PercentInterp(percent, 20, 89);
+  progress_func_(total_percent, "Extracting modpack...");
+}
+
+void ModpackInstallerProgresser::WriteProfileProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(90, "Writing profile...");
+}
+
+void ModpackInstallerProgresser::Done()
+{
+  if (!progress_func_) return;
+  progress_func_(100, "Done!");
+}
+
+ModpackUpdaterProgresser::ModpackUpdaterProgresser(const ProgressFunc& progress_func)
+    : progress_func_(progress_func)
+{
+  if (!progress_func_) return;
+  progress_func_(0, "Starting modpack update...");
+}
+
+void ModpackUpdaterProgresser::PrepInstallProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(0, "Prepping install...");
+}
+
+void ModpackUpdaterProgresser::ProcessKeeplistProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(10, "Processing keeplist...");
+}
+
+void ModpackUpdaterProgresser::BackupProgress(std::size_t percent)
+{
+  if (!progress_func_) return;
+  const std::size_t total_percent = PercentInterp(percent, 20, 39);
+  progress_func_(total_percent, "Backing up outdated files...");
+}
+
+void ModpackUpdaterProgresser::RemoveOutdatedProgress(std::size_t percent)
+{
+  if (!progress_func_) return;
+  const std::size_t total_percent = PercentInterp(percent, 40, 59);
+  progress_func_(total_percent, "Removing outdated files...");
+}
+
+void ModpackUpdaterProgresser::ExtractModpackProgress(std::size_t percent)
+{
+  if (!progress_func_) return;
+  const std::size_t total_percent = PercentInterp(percent, 60, 99);
+  progress_func_(total_percent, "Extracting modpack...");
+}
+
+void ModpackUpdaterProgresser::Done()
+{
+  if (!progress_func_) return;
+  progress_func_(100, "Done!");
+}
+
+std::size_t PercentInterp(std::size_t percent, std::size_t low, std::size_t high)
+{
+  return ((high - low) * percent / 100) + low;
+}
 
 std::optional<fs::path> GetDefaultDotMinecraftPath()
 {

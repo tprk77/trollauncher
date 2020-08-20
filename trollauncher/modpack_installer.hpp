@@ -20,6 +20,7 @@
 #define TROLLAUNCHER_MODPACK_INSTALLER_HPP_
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <system_error>
@@ -27,6 +28,8 @@
 #include "trollauncher/profile_data.hpp"
 
 namespace tl {
+
+using ProgressFunc = std::function<void(std::size_t, const std::string&)>;
 
 std::vector<ProfileData> GetInstalledProfiles(std::error_code* ec);
 std::vector<ProfileData> GetInstalledProfiles(const std::filesystem::path& dot_minecraft_path,
@@ -47,10 +50,10 @@ class ModpackInstaller final {
   std::optional<bool> IsForgeInstalled();
 
   bool Install(const std::string& profile_name, const std::string& profile_icon,
-               std::error_code* ec);
+               std::error_code* ec, const ProgressFunc& progress_func = nullptr);
   bool Install(const std::string& profile_id, const std::string& profile_name,
                const std::string& profile_icon, const std::filesystem::path& install_path,
-               std::error_code* ec);
+               std::error_code* ec, const ProgressFunc& progress_func = nullptr);
 
  private:
   ModpackInstaller();
@@ -71,7 +74,7 @@ class ModpackUpdater final {
   bool PrepInstaller(std::error_code* ec);
   std::optional<bool> IsForgeInstalled();
 
-  bool Update(std::error_code* ec);
+  bool Update(std::error_code* ec, const ProgressFunc& progress_func = nullptr);
 
  private:
   ModpackUpdater();
