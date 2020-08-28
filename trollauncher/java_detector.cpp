@@ -132,7 +132,7 @@ std::optional<std::string> GetJavaVersion(const fs::path& java_path)
   // java version "1.8.0_51"
   // openjdk version "11.0.5" 2019-10-15
   std::smatch version_match;
-  static const std::regex version_regex("^[^ ]+ version \"([^\"]+)\"");
+  const std::regex version_regex("^[^ ]+ version \"([^\"]+)\"");
   if (!std::regex_search(java_output, version_match, version_regex)) {
     return std::nullopt;
   }
