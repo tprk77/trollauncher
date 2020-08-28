@@ -23,6 +23,15 @@ major_version = version_array[0].to_int()
 minor_version = version_array[1].to_int()
 patch_version = version_array[2].to_int()
 
+#################
+# Linux Options #
+#################
+
+lnx_extra_deps = []
+if build_machine.system() == 'linux'
+  lnx_extra_deps = [meson.get_compiler('cpp').find_library('libprocps')]
+endif
+
 ###################
 # Windows Options #
 ###################
@@ -111,6 +120,7 @@ trollauncher_srcs = [
     'trollauncher/keeplist_processor.cpp',
     'trollauncher/launcher_profiles_editor.cpp',
     'trollauncher/main.cpp',
+    'trollauncher/mc_process_detector.cpp',
     'trollauncher/modpack_installer.cpp',
     'trollauncher/utils.cpp'
 ]
@@ -126,6 +136,6 @@ trollauncher_deps = [
 executable(
   'trollauncher', trollauncher_srcs + msw_extra_src,
   include_directories : [],
-  dependencies : trollauncher_deps + msw_extra_deps,
+  dependencies : trollauncher_deps + lnx_extra_deps + msw_extra_deps,
   link_args : main_link_args
 )
