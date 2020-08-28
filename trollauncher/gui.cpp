@@ -27,6 +27,7 @@
 #include <wx/utils.h>
 #include <wx/wx.h>
 
+#include "trollauncher/mc_process_detector.hpp"
 #include "trollauncher/modpack_installer.hpp"
 #include "trollauncher/utils.hpp"
 
@@ -128,6 +129,7 @@ class GuiDialogProgress : public wxProgressDialog {
   GuiDialogProgress(wxWindow* parent);
 };
 
+std::string GetProcessRunningMessage(McProcessRunning process_running, bool can_continue);
 void OpenUrlInBrowser(const char* const url);
 std::vector<std::string> GetUniqueProfileNames(const std::vector<ProfileData>& profile_datas);
 const wxBitmap& GetTrollfaceIcon16x16();
@@ -159,6 +161,12 @@ bool GuiApp::OnInit()
   wxImage::AddHandler(new wxPNGHandler());
   wxFrame* frame_ptr = new GuiFrame();
   frame_ptr->Show(true);
+  const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
+  if (process_running != McProcessRunning::NONE) {
+    const auto text = GetProcessRunningMessage(process_running, false);
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, frame_ptr);
+    return false;
+  }
   return true;
 }
 
@@ -231,6 +239,12 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
     wxMessageBox("You must supply a profile icon.", "Error", wxOK | wxICON_ERROR, this);
     return;
   }
+  const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
+  if (process_running != McProcessRunning::NONE) {
+    const auto text = GetProcessRunningMessage(process_running, true);
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
   std::error_code ec;
   mi_ptr_ = ModpackInstaller::Create(data.modpack_path, &ec);
   if (mi_ptr_ == nullptr) {
@@ -262,8 +276,7 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
-  const auto text = wxString::Format("Modpack installed successfully.", ec.message());
-  wxMessageBox(text, "Success", wxOK, this);
+  wxMessageBox("Modpack installed successfully.", "Success", wxOK, this);
   Close();
 }
 
@@ -276,6 +289,12 @@ void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
   }
   if (data.profile_id.empty()) {
     wxMessageBox("You must supply a profile ID.", "Error", wxOK | wxICON_ERROR, this);
+    return;
+  }
+  const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
+  if (process_running != McProcessRunning::NONE) {
+    const auto text = GetProcessRunningMessage(process_running, true);
+    wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
   std::error_code ec;
@@ -309,8 +328,7 @@ void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
-  const auto text = wxString::Format("Modpack updated successfully.", ec.message());
-  wxMessageBox(text, "Success", wxOK, this);
+  wxMessageBox("Modpack updated successfully.", "Success", wxOK, this);
   Close();
 }
 
@@ -545,6 +563,27 @@ GuiDialogProgress::GuiDialogProgress(wxWindow* parent)
   SetSize(wxSize(MIN_PROGRESS_WIDTH, GetSize().GetHeight()));
   SetMinSize(GetSize());
   SetMaxSize(GetSize());
+}
+
+std::string GetProcessRunningMessage(McProcessRunning process_running, bool can_continue)
+{
+  switch (process_running) {
+  case McProcessRunning::LAUNCHER:
+    return std::string("Detected a running Minecraft Launcher.\n\n")
+           + (can_continue ? "Please close the launcher to continue."
+                           : "Please close the launcher and restart this utility.");
+  case McProcessRunning::GAME:
+    return std::string("Detected a running Minecraft game (Java).\n\n")
+           + (can_continue ? "Please close the game to continue."
+                           : "Please close the game and restart this utility.");
+  case McProcessRunning::LAUNCHER_AND_GAME:
+    return std::string("Detected a running Minecraft Launcher and game (Java).\n\n")
+           + (can_continue ? "Please close the launcher and game to continue."
+                           : "Please close the launcher and game and restart this utility.");
+  default:
+    // We should never actaully display this
+    return "Durp! Durp! Durp!";
+  }
 }
 
 void OpenUrlInBrowser(const char* const url)
