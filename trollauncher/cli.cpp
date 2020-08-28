@@ -25,6 +25,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "trollauncher/mc_process_detector.hpp"
 #include "trollauncher/modpack_installer.hpp"
 #include "trollauncher/utils.hpp"
 
@@ -71,6 +72,7 @@ std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool
 int InstallCli(const InstallArgs& install_args);
 int UpdateCli(const UpdateArgs& update_args);
 int ListCli(const ListArgs& list_args);
+std::string GetProcessRunningMessage(McProcessRunning process_running);
 void UpperFirstChar(std::string* string_ptr);
 std::string QuotedStringOrNull(const std::optional<std::string>& str_opt);
 std::string QuotedStringOrNull(const std::optional<fs::path>& path_opt);
@@ -376,6 +378,11 @@ std::optional<ListArgs> ParseListArgs(const std::vector<std::string>& args, bool
 
 int InstallCli(const InstallArgs& install_args)
 {
+  const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
+  if (process_running != McProcessRunning::NONE) {
+    std::cerr << "Error: " << GetProcessRunningMessage(process_running) << "\n";
+    return 1;
+  }
   std::error_code ec;
   auto mi_ptr = ModpackInstaller::Create(install_args.modpack_path, &ec);
   if (mi_ptr == nullptr) {
@@ -397,6 +404,11 @@ int InstallCli(const InstallArgs& install_args)
 
 int UpdateCli(const UpdateArgs& update_args)
 {
+  const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
+  if (process_running != McProcessRunning::NONE) {
+    std::cerr << "Error: " << GetProcessRunningMessage(process_running) << "\n";
+    return 1;
+  }
   std::error_code ec;
   auto mu_ptr = ModpackUpdater::Create(update_args.profile_id, update_args.modpack_path, &ec);
   if (mu_ptr == nullptr) {
@@ -429,6 +441,21 @@ int ListCli(const ListArgs& list_args)
     break;
   }
   return 0;
+}
+
+std::string GetProcessRunningMessage(McProcessRunning process_running)
+{
+  switch (process_running) {
+  case McProcessRunning::LAUNCHER:
+    return "The Minecraft Launcher is running, please close it";
+  case McProcessRunning::GAME:
+    return "Minecraft is running, please close it";
+  case McProcessRunning::LAUNCHER_AND_GAME:
+    return "The Minecraft Launcher and game are both running, please close both";
+  default:
+    // We should never actaully display this
+    return "Durp! Durp! Durp!";
+  }
 }
 
 void UpperFirstChar(std::string* string_ptr)
