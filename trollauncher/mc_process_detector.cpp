@@ -31,19 +31,55 @@
 
 #if ITS_A_UNIX_SYSTEM
 #include <proc/readproc.h>
+#else
+// TODO
 #endif
 
 namespace tl {
 
-McProcessRunning McProcessDetector::GetRunningMinecraft()
-{
+namespace {
+
 #if ITS_A_UNIX_SYSTEM
+void ForEachProcesses(const std::function<bool(const std::string&)>& func)
+{
   PROCTAB* const proctab_ptr = openproc(PROC_FILLCOM);
   if (proctab_ptr == nullptr) {
     // Technically an error, but we will just assume it's not running since
     // detection is not perfect and best effort only
-    return McProcessRunning::NONE;
+    return;
   }
+  proc_t proc_info = {};
+  while (readproc(proctab_ptr, &proc_info) != nullptr) {
+    if (proc_info.cmdline == nullptr) {
+      // Ignore any process without a command line
+      continue;
+    }
+    std::string command_line;
+    {
+      const char* const* cmdline_ptr = proc_info.cmdline;
+      command_line = *cmdline_ptr;
+      while (*++cmdline_ptr != nullptr) {
+        command_line += " ";
+        command_line += *cmdline_ptr;
+      }
+    }
+    if (!func(command_line)) {
+      break;
+    }
+  }
+  closeproc(proctab_ptr);
+}
+#else
+void ForEachProcesses(const std::function<bool(const std::string&)>&)
+{
+  // TODO
+}
+#endif
+
+}  // namespace
+
+McProcessRunning McProcessDetector::GetRunningMinecraft()
+{
   // For the launcher, we attempt to match the absolute path of the program,
   // which *should* be pretty consistent. If the user is doing something
   // slightly wacky like using a relative path, this will fail. This is still
@@ -61,43 +97,30 @@ McProcessRunning McProcessDetector::GetRunningMinecraft()
       "|net\\.minecraft\\.launchwrapper\\.Launch");
   bool found_launcher = false;
   bool found_game = false;
-  proc_t proc_info = {};
-  while ((!found_launcher || !found_game) && readproc(proctab_ptr, &proc_info) != nullptr) {
-    if (proc_info.cmdline == nullptr) {
-      continue;
-    }
-    std::string full_command;
-    {
-      const char* const* cmdline_ptr = proc_info.cmdline;
-      full_command = *cmdline_ptr;
-      while (*++cmdline_ptr != nullptr) {
-        full_command += " ";
-        full_command += *cmdline_ptr;
-      }
+  ForEachProcesses([&](const std::string& command_line) {
+    if (found_launcher && found_game) {
+      // Stop searching early if we already found both
+      return false;
     }
     if (!found_launcher) {
-      if (std::regex_search(full_command, launcher_regex)) {
+      if (std::regex_search(command_line, launcher_regex)) {
         found_launcher = true;
-        continue;
+        return true;
       }
     }
     if (!found_game) {
-      if (std::regex_search(full_command, game_launch_regex)
-          && std::regex_search(full_command, game_class_regex)) {
+      if (std::regex_search(command_line, game_launch_regex)
+          && std::regex_search(command_line, game_class_regex)) {
         found_game = true;
-        continue;
+        return true;
       }
     }
-  }
-  closeproc(proctab_ptr);
+    return true;
+  });
   return (found_launcher && found_game
               ? McProcessRunning::LAUNCHER_AND_GAME
               : (found_launcher ? McProcessRunning::LAUNCHER
                                 : (found_game ? McProcessRunning::GAME : McProcessRunning::NONE)));
-#else
-  // TODO Windows support
-  return McProcessRunning::NONE;
-#endif
 }
 
 }  // namespace tl
