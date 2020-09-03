@@ -447,11 +447,11 @@ std::string GetProcessRunningMessage(McProcessRunning process_running)
 {
   switch (process_running) {
   case McProcessRunning::LAUNCHER:
-    return "The Minecraft Launcher is running, please close it";
+    return "The Minecraft Launcher appears to be running, please close it";
   case McProcessRunning::GAME:
-    return "Minecraft is running, please close it";
+    return "Minecraft appears to be running, please close it";
   case McProcessRunning::LAUNCHER_AND_GAME:
-    return "The Minecraft Launcher and game are both running, please close both";
+    return "The Minecraft Launcher and game both appear to be running, please close them";
   default:
     // We should never actaully display this
     return "Durp! Durp! Durp!";

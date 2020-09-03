@@ -163,7 +163,8 @@ bool GuiApp::OnInit()
   frame_ptr->Show(true);
   const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
   if (process_running != McProcessRunning::NONE) {
-    const auto text = GetProcessRunningMessage(process_running, false);
+    const auto text = wxString::Format("Detected running Minecraft processes!\n\n%s",
+                                       GetProcessRunningMessage(process_running, false));
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, frame_ptr);
     return false;
   }
@@ -241,7 +242,8 @@ void GuiFrame::OnDoModpackInstall(wxCommandEvent&)
   }
   const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
   if (process_running != McProcessRunning::NONE) {
-    const auto text = GetProcessRunningMessage(process_running, true);
+    const auto text = wxString::Format("Detected running Minecraft processes!\n\n%s",
+                                       GetProcessRunningMessage(process_running, true));
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
@@ -293,7 +295,8 @@ void GuiFrame::OnDoModpackUpdate(wxCommandEvent&)
   }
   const McProcessRunning process_running = McProcessDetector::GetRunningMinecraft();
   if (process_running != McProcessRunning::NONE) {
-    const auto text = GetProcessRunningMessage(process_running, true);
+    const auto text = wxString::Format("Detected running Minecraft processes!\n\n%s",
+                                       GetProcessRunningMessage(process_running, true));
     wxMessageBox(text, "Error", wxOK | wxICON_ERROR, this);
     return;
   }
@@ -567,19 +570,15 @@ GuiDialogProgress::GuiDialogProgress(wxWindow* parent)
 
 std::string GetProcessRunningMessage(McProcessRunning process_running, bool can_continue)
 {
+  const std::string continue_text = (can_continue ? "to continue." : "and restart this utility.");
   switch (process_running) {
   case McProcessRunning::LAUNCHER:
-    return std::string("Detected a running Minecraft Launcher.\n\n")
-           + (can_continue ? "Please close the launcher to continue."
-                           : "Please close the launcher and restart this utility.");
+    return "The Minecraft Launcher appears to be running. Please close it " + continue_text;
   case McProcessRunning::GAME:
-    return std::string("Detected a running Minecraft game (Java).\n\n")
-           + (can_continue ? "Please close the game to continue."
-                           : "Please close the game and restart this utility.");
+    return "Minecraft appears to be running. Please close it " + continue_text;
   case McProcessRunning::LAUNCHER_AND_GAME:
-    return std::string("Detected a running Minecraft Launcher and game (Java).\n\n")
-           + (can_continue ? "Please close the launcher and game to continue."
-                           : "Please close the launcher and game and restart this utility.");
+    return "The Minecraft Launcher and game both appear to be running. Please close them "
+           + continue_text;
   default:
     // We should never actaully display this
     return "Durp! Durp! Durp!";
