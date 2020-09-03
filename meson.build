@@ -59,7 +59,11 @@ if build_machine.system() == 'windows'
       include_directories : include_directories('resource', 'C:/msys64/mingw64/include/wx-3.0')
     )
   ]
-  msw_extra_deps = [meson.get_compiler('cpp').find_library('ws2_32')]
+  msw_extra_deps = [
+    meson.get_compiler('cpp').find_library('ws2_32'),
+    meson.get_compiler('cpp').find_library('ole32'),
+    meson.get_compiler('cpp').find_library('wbemuuid')
+  ]
   wxwidgets_mods = ['--static']
   main_link_args = ['-static']
 endif
