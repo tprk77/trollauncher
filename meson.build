@@ -41,6 +41,7 @@ msw_extra_src = []
 msw_extra_deps = []
 wxwidgets_mods = []
 main_link_args = []
+static_boost = false
 if build_machine.system() == 'windows'
   windows = import('windows')
   trollauncher_rc = configure_file(
@@ -66,6 +67,7 @@ if build_machine.system() == 'windows'
   ]
   wxwidgets_mods = ['--static']
   main_link_args = ['-static']
+  static_boost = true
 endif
 
 ################
@@ -78,7 +80,9 @@ boost_dep = dependency(
   'boost',
   version : '>=1.65.0',
   modules : ['system', 'filesystem', 'program_options'],
-  include_type : 'system'
+  include_type : 'system',
+  # This seems only required for boost
+  static : static_boost
 )
 
 libzippp_dep = dependency(
