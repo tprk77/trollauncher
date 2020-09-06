@@ -100,7 +100,7 @@ std::size_t PercentInterp(std::size_t percent, std::size_t low, std::size_t high
 std::optional<fs::path> GetDefaultDotMinecraftPath();
 fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::string& name);
 bool ProfileLooksLikeAnInstall(const ProfileData& profile_data);
-bool ProfileLooksLikeAnInstall(const fs::path& profile_path);
+bool ProfilePathLooksLikeAnInstall(const fs::path& profile_path);
 std::optional<std::vector<fs::path>> GetDirFilePaths(const fs::path& dir_path);
 std::optional<fs::path> GetTopLevelDirectory(zpp::ZipArchive* zip_ptr);
 fs::path StripPrefix(const fs::path& orig_path, const fs::path& prefix_path);
@@ -603,25 +603,31 @@ fs::path GetDefaultInstallPath(const fs::path& dot_minecraft_path, const std::st
 
 bool ProfileLooksLikeAnInstall(const ProfileData& profile_data)
 {
-  if (!profile_data.type_opt || profile_data.type_opt.value() != "custom") {
-    return false;
-  }
-  if (!profile_data.game_path_opt
-      || !ProfileLooksLikeAnInstall(profile_data.game_path_opt.value())) {
-    return false;
-  }
-  return true;
+  const bool is_type_custom = (profile_data.type_opt && profile_data.type_opt.value() == "custom");
+  const bool is_game_path_install =
+      (profile_data.game_path_opt
+       && ProfilePathLooksLikeAnInstall(profile_data.game_path_opt.value()));
+  return is_type_custom && is_game_path_install;
 }
 
-bool ProfileLooksLikeAnInstall(const fs::path& profile_path)
+bool ProfilePathLooksLikeAnInstall(const fs::path& profile_path)
 {
+  // Check for an empty directory, and let it count as an install. This seems a
+  // bit weird, but it can be useful for updating profiles after going with the
+  // nuclear option and deleting everything.
+  if (fs::is_directory(profile_path)) {
+    const auto modpack_dir_iter = fs::directory_iterator(profile_path);
+    if (begin(modpack_dir_iter) == end(modpack_dir_iter)) {
+      return true;
+    }
+  }
   // Check for the presence "trollauncher/install.jar"
-  fs::path possible_installer_path = profile_path / "trollauncher" / "installer.jar";
+  const fs::path possible_installer_path = profile_path / "trollauncher" / "installer.jar";
   const bool is_trollauncher_like = fs::is_regular_file(possible_installer_path);
   // Check for the absence of "assets", "libraries", and "versions"
-  fs::path possible_assets_path = profile_path / "assets";
-  fs::path possible_libraries_path = profile_path / "libraries";
-  fs::path possible_versions_path = profile_path / "versions";
+  const fs::path possible_assets_path = profile_path / "assets";
+  const fs::path possible_libraries_path = profile_path / "libraries";
+  const fs::path possible_versions_path = profile_path / "versions";
   const bool is_minecraft_like =
       (fs::is_directory(possible_assets_path) && fs::is_directory(possible_libraries_path)
        && fs::is_directory(possible_versions_path));
