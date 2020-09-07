@@ -1,0 +1,11 @@
+name: Linux Build
+on: [push]
+
+jobs:
+  build:
+    name: Ubuntu Build
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Echo hello
+        run: echo 'Hello'
