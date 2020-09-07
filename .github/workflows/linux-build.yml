@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: sudo apt-get update
-      - run: sudo apt-get install -y ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev
+      - run: sudo apt-get install -y ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
       - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
       - run: ninja -v -C rbuild
