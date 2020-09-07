@@ -79,6 +79,7 @@ class ModpackUpdaterProgresser {
   void BackupProgress(std::size_t percent);
   void RemoveOutdatedProgress(std::size_t percent);
   void ExtractModpackProgress(std::size_t percent);
+  void UpdateProfileProgress();
   void Done();
 
  private:
@@ -477,6 +478,12 @@ bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_fu
     SetError(ec, Error::MODPACK_UNZIP_FAILED);
     return false;
   }
+  // Step 6: Update profile
+  progresser.UpdateProfileProgress();
+  const std::string forge_version = data_->fi_ptr->GetForgeVersion();
+  if (!data_->lpe_ptr->UpdateProfile(data_->profile_id, forge_version, ec)) {
+    return false;
+  }
   progresser.Done();
   return true;
 }
@@ -563,8 +570,14 @@ void ModpackUpdaterProgresser::RemoveOutdatedProgress(std::size_t percent)
 void ModpackUpdaterProgresser::ExtractModpackProgress(std::size_t percent)
 {
   if (!progress_func_) return;
-  const std::size_t total_percent = PercentInterp(percent, 70, 99);
+  const std::size_t total_percent = PercentInterp(percent, 70, 89);
   progress_func_(total_percent, "Extracting modpack...");
+}
+
+void ModpackUpdaterProgresser::UpdateProfileProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(90, "Updating profile...");
 }
 
 void ModpackUpdaterProgresser::Done()

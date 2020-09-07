@@ -273,6 +273,30 @@ bool LauncherProfilesEditor::WriteProfile(const std::string& id, const std::stri
   return true;
 }
 
+bool LauncherProfilesEditor::UpdateProfile(const std::string& id, const std::string& version,
+                                           std::error_code* ec)
+{
+  // TODO This function should be made more flexible. Ideally, it should take a
+  // "ProfileData" as an argument, and update whatever fields we want.
+  if (!Refresh(ec)) {
+    return false;
+  }
+  nl::json profile_json = data_->launcher_profiles_json["profiles"].value(id, nl::json(nullptr));
+  if (!profile_json.is_object()) {
+    SetError(ec, Error::LAUNCHER_PROFILES_NO_PROFILE);
+    return false;
+  }
+  const std::string current_time = GetCurrentTimeAsString();
+  profile_json["lastVersionId"] = version;
+  profile_json["lastUsed"] = current_time;
+  nl::json new_launcher_profiles_json = data_->launcher_profiles_json;
+  new_launcher_profiles_json["profiles"][id] = profile_json;
+  if (!WriteLauncherProfilesJson(data_->launcher_profiles_path, new_launcher_profiles_json, ec)) {
+    return false;
+  }
+  return true;
+}
+
 namespace {
 
 std::string GetCurrentTimeAsString(std::optional<std::chrono::seconds> time_modifier_opt)
