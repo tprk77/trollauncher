@@ -43,8 +43,6 @@ namespace {
 namespace fs = std::filesystem;
 namespace nl = nlohmann;
 
-std::string GetCurrentTimeAsString(
-    std::optional<std::chrono::seconds> time_modifier_opt = std::nullopt);
 bool IsFileWritable(const fs::path& path);
 fs::path AddFilenamePrefix(const fs::path& path, const std::string& prefix);
 bool WriteLauncherProfilesJson(const fs::path& launcher_profiles_path,
@@ -215,7 +213,8 @@ bool LauncherProfilesEditor::PatchForgeProfile(std::error_code* ec)
     return false;
   }
   // Add a "lastUsed" time because Forge is lazy and doesn't do this!
-  forge_profile["lastUsed"] = GetCurrentTimeAsString(std::chrono::seconds(-1));
+  const auto now_time = std::chrono::system_clock::now() - std::chrono::seconds(1);
+  forge_profile["lastUsed"] = StringFromTime(now_time);
   nl::json new_launcher_profiles_json = data_->launcher_profiles_json;
   new_launcher_profiles_json["profiles"]["forge"] = forge_profile;
   if (!WriteLauncherProfilesJson(data_->launcher_profiles_path, new_launcher_profiles_json, ec)) {
@@ -319,12 +318,6 @@ bool LauncherProfilesEditor::UpdateProfile(const ProfileData& profile_data, std:
 }
 
 namespace {
-
-std::string GetCurrentTimeAsString(std::optional<std::chrono::seconds> time_modifier_opt)
-{
-  const auto now_time = std::chrono::system_clock::now();
-  return StringFromTime(now_time + time_modifier_opt.value_or(std::chrono::seconds(0)));
-}
 
 bool IsFileWritable(const fs::path& path)
 {
