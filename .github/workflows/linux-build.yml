@@ -12,5 +12,5 @@ jobs:
           python-version: '3.x'
       - run: sudo apt-get update
       - run: sudo apt-get install -y libwxgtk3.0-dev
-      - run: sudo -H pip3 install meson
+      - run: pip3 install meson
       - run: ls -l
