@@ -598,10 +598,16 @@ void OpenUrlInBrowser(const char* const url)
 std::vector<std::string> GetUniqueProfileNames(const std::vector<ProfileData>& profile_datas)
 {
   // TODO Make sure these strings are actually unique
+  constexpr std::size_t MAX_NAME_LENGTH = 30;
   std::vector<std::string> profile_names;
   for (const ProfileData& profile_data : profile_datas) {
     const std::string profile_name = profile_data.name_opt.value_or("");
-    const std::string name_part = (!profile_name.empty() ? profile_name : "<Unnamed Profile>");
+    const std::string name_part =                         //
+        (!profile_name.empty()                            //
+             ? (profile_name.length() <= MAX_NAME_LENGTH  //
+                    ? profile_name                        //
+                    : profile_name.substr(0, MAX_NAME_LENGTH) + "...")
+             : "<Unnamed Profile>");
     // The "Furnace" is apparently the default when no icon is set
     const std::regex data_icon_regex("^data:");
     const std::string profile_icon = profile_data.icon_opt.value_or("");
