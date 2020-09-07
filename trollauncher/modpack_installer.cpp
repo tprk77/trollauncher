@@ -74,6 +74,7 @@ class ModpackUpdaterProgresser {
   // once at 0%. Calling the next function assumes 100% of the last stage.
 
   void PrepInstallProgress();
+  void InstallForgeProgress();
   void ProcessKeeplistProgress();
   void BackupProgress(std::size_t percent);
   void RemoveOutdatedProgress(std::size_t percent);
@@ -431,8 +432,17 @@ bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_fu
   if (!data_->is_prepped && !PrepInstaller(ec)) {
     return false;
   }
-
-  // Step 1: Get existing files not in the keeplist
+  // Step 1: Install Forge
+  progresser.InstallForgeProgress();
+  if (!data_->fi_ptr->IsInstalled()) {
+    if (!data_->fi_ptr->Install(ec)) {
+      return false;
+    }
+    if (!data_->lpe_ptr->PatchForgeProfile(ec)) {
+      return false;
+    }
+  }
+  // Step 2: Get existing files not in the keeplist
   progresser.ProcessKeeplistProgress();
   const auto klp_ptr = KeeplistProcessor::CreateDefault();
   if (klp_ptr == nullptr) {
@@ -446,19 +456,19 @@ bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_fu
   }
   const std::vector<fs::path> overwrite_paths =
       klp_ptr->FilterOverwritePaths(all_file_paths_opt.value());
-  // Step 2: Create backup zip file of all outdated file
+  // Step 3: Create backup zip file of all outdated file
   const fs::path backup_path = GetBackupZipPath(data_->dot_minecraft_path, data_->profile_id);
   const auto bk_prog_func = [&](std::size_t percent) { progresser.BackupProgress(percent); };
   if (!CreateBackupZipFile(backup_path, profile_path, overwrite_paths, bk_prog_func)) {
     SetError(ec, Error::PROFILE_BACKUP_FAILED);
     return false;
   }
-  // Step 3: Delete all outdated files
+  // Step 4: Delete all outdated files
   const auto rm_prog_func = [&](std::size_t percent) {
     progresser.RemoveOutdatedProgress(percent);
   };
   RemoveOutdatedFiles(profile_path, overwrite_paths, rm_prog_func);
-  // Step 4: Extract new files not in the keeplist
+  // Step 5: Extract new files not in the keeplist
   const std::optional<fs::path> tl_dir_opt = GetTopLevelDirectory(data_->zip_ptr.get());
   const auto ex_prog_func = [&](std::size_t percent) {
     progresser.ExtractModpackProgress(percent);
@@ -524,30 +534,36 @@ void ModpackUpdaterProgresser::PrepInstallProgress()
   progress_func_(0, "Prepping install...");
 }
 
+void ModpackUpdaterProgresser::InstallForgeProgress()
+{
+  if (!progress_func_) return;
+  progress_func_(10, "Installing Forge...");
+}
+
 void ModpackUpdaterProgresser::ProcessKeeplistProgress()
 {
   if (!progress_func_) return;
-  progress_func_(10, "Processing keeplist...");
+  progress_func_(20, "Processing keeplist...");
 }
 
 void ModpackUpdaterProgresser::BackupProgress(std::size_t percent)
 {
   if (!progress_func_) return;
-  const std::size_t total_percent = PercentInterp(percent, 20, 39);
+  const std::size_t total_percent = PercentInterp(percent, 30, 49);
   progress_func_(total_percent, "Backing up outdated files... (This may take a moment)");
 }
 
 void ModpackUpdaterProgresser::RemoveOutdatedProgress(std::size_t percent)
 {
   if (!progress_func_) return;
-  const std::size_t total_percent = PercentInterp(percent, 40, 59);
+  const std::size_t total_percent = PercentInterp(percent, 50, 69);
   progress_func_(total_percent, "Removing outdated files...");
 }
 
 void ModpackUpdaterProgresser::ExtractModpackProgress(std::size_t percent)
 {
   if (!progress_func_) return;
-  const std::size_t total_percent = PercentInterp(percent, 60, 99);
+  const std::size_t total_percent = PercentInterp(percent, 70, 99);
   progress_func_(total_percent, "Extracting modpack...");
 }
 
