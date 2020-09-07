@@ -19,6 +19,7 @@
 #include "trollauncher/gui.hpp"
 
 #include <functional>
+#include <regex>
 
 #include <wx/filepicker.h>
 #include <wx/mimetype.h>
@@ -602,8 +603,14 @@ std::vector<std::string> GetUniqueProfileNames(const std::vector<ProfileData>& p
     const std::string profile_name = profile_data.name_opt.value_or("");
     const std::string name_part = (!profile_name.empty() ? profile_name : "<Unnamed Profile>");
     // The "Furnace" is apparently the default when no icon is set
+    const std::regex data_icon_regex("^data:");
     const std::string profile_icon = profile_data.icon_opt.value_or("");
-    const std::string icon_part = (!profile_icon.empty() ? profile_icon : "<No Icon>");
+    const std::string icon_part =                                  //
+        (!profile_icon.empty()                                     //
+             ? (!std::regex_search(profile_icon, data_icon_regex)  //
+                    ? profile_icon                                 //
+                    : "<Custom Icon>")
+             : "<No Icon>");
     profile_names.push_back(name_part + " (" + icon_part + ")");
   }
   return profile_names;
