@@ -60,8 +60,11 @@ std::string TrollauncherCategory::message(int error) const
   else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_PARSE_FAILED)) {
     return "Failed to parse JSON of launcher profiles file";
   }
+  else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_NO_PROFILE)) {
+    return "Launcher profiles file does not contain the given profile";
+  }
   else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_NO_FORGE_PROFILE)) {
-    return "Launcher profiles file is missing the Forge profile";
+    return "Launcher profiles file does not contain the Forge profile";
   }
   else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_ID_USED)) {
     return "Profile ID is not unique";
