@@ -11,8 +11,8 @@ jobs:
         with:
           python-version: '3.x'
       - run: sudo apt-get update
-      - run: sudo apt-get install -y libwxgtk3.0-dev
+      - run: sudo apt-get install -y ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev
       - run: pip3 install meson
-      - run: CXXFLAGS="-Os" meson --buildtype release -v rbuild
-      - run: ninja -C rbuild
-      - run: find rbuild -regex '.*/trollauncher$' | xargs strip -s
+      - run: meson setup --buildtype minsize rbuild
+      - run: ninja -v -C rbuild
+      - run: strip -s rbuild/trollauncher
