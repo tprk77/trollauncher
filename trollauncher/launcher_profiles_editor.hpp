@@ -46,10 +46,8 @@ class LauncherProfilesEditor final {
   std::string GetNewUniqueName() const;
 
   bool PatchForgeProfile(std::error_code* ec);
-  bool WriteProfile(const std::string& id, const std::string& name, const std::string& icon,
-                    const std::string& version, const std::filesystem::path& game_path,
-                    const std::optional<std::filesystem::path>& java_path_opt, std::error_code* ec);
-  bool UpdateProfile(const std::string& id, const std::string& version, std::error_code* ec);
+  bool WriteProfile(const ProfileData& profile_data, std::error_code* ec);
+  bool UpdateProfile(const ProfileData& profile_data, std::error_code* ec);
 
  private:
   LauncherProfilesEditor();

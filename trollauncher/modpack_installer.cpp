@@ -306,10 +306,14 @@ bool ModpackInstaller::Install(const std::string& profile_id, const std::string&
   }
   // Step 3: Write profile
   progresser.WriteProfileProgress();
-  const std::string forge_version = data_->fi_ptr->GetForgeVersion();
-  const std::optional<fs::path> java_path_opt = JavaDetector::GetJavaVersion8();
-  if (!data_->lpe_ptr->WriteProfile(profile_id, profile_name, profile_icon, forge_version,
-                                    install_path, java_path_opt, ec)) {
+  ProfileData profile_data;
+  profile_data.id = profile_id;
+  profile_data.name_opt = profile_name;
+  profile_data.icon_opt = profile_icon;
+  profile_data.version_opt = data_->fi_ptr->GetForgeVersion();
+  profile_data.game_path_opt = install_path;
+  profile_data.java_path_opt = JavaDetector::GetJavaVersion8();
+  if (!data_->lpe_ptr->WriteProfile(profile_data, ec)) {
     return false;
   }
   progresser.Done();
@@ -480,8 +484,10 @@ bool ModpackUpdater::Update(std::error_code* ec, const ProgressFunc& progress_fu
   }
   // Step 6: Update profile
   progresser.UpdateProfileProgress();
-  const std::string forge_version = data_->fi_ptr->GetForgeVersion();
-  if (!data_->lpe_ptr->UpdateProfile(data_->profile_id, forge_version, ec)) {
+  ProfileData update_profile_data;
+  update_profile_data.id = data_->profile_id;
+  update_profile_data.version_opt = data_->fi_ptr->GetForgeVersion();
+  if (!data_->lpe_ptr->UpdateProfile(update_profile_data, ec)) {
     return false;
   }
   progresser.Done();

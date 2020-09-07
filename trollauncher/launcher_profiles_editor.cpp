@@ -224,20 +224,21 @@ bool LauncherProfilesEditor::PatchForgeProfile(std::error_code* ec)
   return true;
 }
 
-bool LauncherProfilesEditor::WriteProfile(const std::string& id, const std::string& name,
-                                          const std::string& icon, const std::string& version,
-                                          const fs::path& game_path,
-                                          const std::optional<fs::path>& java_path_opt,
-                                          std::error_code* ec)
+bool LauncherProfilesEditor::WriteProfile(const ProfileData& profile_data, std::error_code* ec)
 {
   if (!Refresh(ec)) {
     return false;
   }
-  if (HasProfileWithId(id)) {
+  if (!profile_data.name_opt || !profile_data.name_opt || !profile_data.icon_opt
+      || !profile_data.version_opt || !profile_data.game_path_opt) {
+    SetError(ec, Error::LAUNCHER_PROFILES_INVALID_PROFILE);
+    return false;
+  }
+  if (HasProfileWithId(profile_data.id)) {
     SetError(ec, Error::LAUNCHER_PROFILES_ID_USED);
     return false;
   }
-  if (HasProfileWithName(name)) {
+  if (HasProfileWithName(profile_data.name_opt.value())) {
     SetError(ec, Error::LAUNCHER_PROFILES_NAME_USED);
     return false;
   }
@@ -252,45 +253,65 @@ bool LauncherProfilesEditor::WriteProfile(const std::string& id, const std::stri
   //   "name": "Adakite 58",
   //   "type": "custom"
   // },
-  const nl::json java_path =
-      (java_path_opt ? nl::json(java_path_opt.value().string()) : nl::json(nullptr));
-  const std::string current_time = GetCurrentTimeAsString();
-  const nl::json new_profile_json = {
-      {"created", current_time},        // The current time
-      {"gameDir", game_path.string()},  // The directory of the modpack
-      {"icon", icon},                   // The icon (such as "TNT")
-      {"javaDir", java_path},           // The path to the "java" executable
-      {"lastUsed", current_time},       // Also the current time
-      {"lastVersionId", version},       // The Forge version string
-      {"name", name},                   // The name
-      {"type", "custom"},               // The type (always "custom")
-  };
+  const auto now_time = std::chrono::system_clock::now();
+  nl::json profile_json = nl::json::object();
+  profile_json["name"] = profile_data.name_opt.value();
+  profile_json["type"] = profile_data.type_opt.value_or("custom");
+  profile_json["icon"] = profile_data.icon_opt.value();
+  profile_json["lastVersionId"] = profile_data.version_opt.value();
+  profile_json["gameDir"] = profile_data.game_path_opt.value().string();
+  profile_json["created"] = StringFromTime(profile_data.created_time_opt.value_or(now_time));
+  profile_json["lastUsed"] = StringFromTime(profile_data.last_used_time_opt.value_or(now_time));
+  if (profile_data.java_path_opt) {
+    profile_json["javaDir"] = profile_data.java_path_opt.value().string();
+  }
   nl::json new_launcher_profiles_json = data_->launcher_profiles_json;
-  new_launcher_profiles_json["profiles"][id] = new_profile_json;
+  new_launcher_profiles_json["profiles"][profile_data.id] = profile_json;
   if (!WriteLauncherProfilesJson(data_->launcher_profiles_path, new_launcher_profiles_json, ec)) {
     return false;
   }
   return true;
 }
 
-bool LauncherProfilesEditor::UpdateProfile(const std::string& id, const std::string& version,
-                                           std::error_code* ec)
+bool LauncherProfilesEditor::UpdateProfile(const ProfileData& profile_data, std::error_code* ec)
 {
-  // TODO This function should be made more flexible. Ideally, it should take a
-  // "ProfileData" as an argument, and update whatever fields we want.
   if (!Refresh(ec)) {
     return false;
   }
-  nl::json profile_json = data_->launcher_profiles_json["profiles"].value(id, nl::json(nullptr));
+  // Use the original JSON here instead of using "GetProfile", so the new JSON
+  // better preserves whatever it had going on before the updates
+  nl::json profile_json =
+      data_->launcher_profiles_json["profiles"].value(profile_data.id, nl::json(nullptr));
   if (!profile_json.is_object()) {
     SetError(ec, Error::LAUNCHER_PROFILES_NO_PROFILE);
     return false;
   }
-  const std::string current_time = GetCurrentTimeAsString();
-  profile_json["lastVersionId"] = version;
-  profile_json["lastUsed"] = current_time;
+  const auto now_time = std::chrono::system_clock::now();
+  if (profile_data.name_opt) {
+    profile_json["name"] = profile_data.name_opt.value();
+  }
+  if (profile_data.type_opt) {
+    profile_json["type"] = profile_data.type_opt.value();
+  }
+  if (profile_data.icon_opt) {
+    profile_json["icon"] = profile_data.icon_opt.value();
+  }
+  if (profile_data.version_opt) {
+    profile_json["lastVersionId"] = profile_data.version_opt.value();
+  }
+  if (profile_data.game_path_opt) {
+    profile_json["gameDir"] = profile_data.game_path_opt.value().string();
+  }
+  if (profile_data.java_path_opt) {
+    profile_json["javaDir"] = profile_data.java_path_opt.value().string();
+  }
+  if (profile_data.created_time_opt) {
+    profile_json["created"] = StringFromTime(profile_data.created_time_opt.value());
+  }
+  // Always update the last used time, falling back to the current time
+  profile_json["lastUsed"] = StringFromTime(profile_data.last_used_time_opt.value_or(now_time));
   nl::json new_launcher_profiles_json = data_->launcher_profiles_json;
-  new_launcher_profiles_json["profiles"][id] = profile_json;
+  new_launcher_profiles_json["profiles"][profile_data.id] = profile_json;
   if (!WriteLauncherProfilesJson(data_->launcher_profiles_path, new_launcher_profiles_json, ec)) {
     return false;
   }
