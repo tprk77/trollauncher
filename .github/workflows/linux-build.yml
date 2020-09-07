@@ -13,4 +13,6 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install -y libwxgtk3.0-dev
       - run: pip3 install meson
-      - run: ls -l
+      - run: CXXFLAGS="-Os" meson --buildtype release -v rbuild
+      - run: ninja -C rbuild
+      - run: find rbuild -regex '.*/trollauncher$' | xargs strip -s
