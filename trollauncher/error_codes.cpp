@@ -66,6 +66,9 @@ std::string TrollauncherCategory::message(int error) const
   else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_NO_FORGE_PROFILE)) {
     return "Launcher profiles file does not contain the Forge profile";
   }
+  else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_INVALID_PROFILE)) {
+    return "Profile is invalid and cannot be written";
+  }
   else if (error == static_cast<int>(Error::LAUNCHER_PROFILES_ID_USED)) {
     return "Profile ID is not unique";
   }
