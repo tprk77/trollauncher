@@ -16,15 +16,15 @@ jobs:
             cc: gcc-8
             cxx: g++-8
     steps:
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y git
+      - run: apt-get update
+      - run: apt-get install -y git
       - uses: actions/checkout@v2
         with:
           submodules: true
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - run: sudo apt-get install -y ${{matrix.pkgdeps}}
+      - run: apt-get install -y ${{matrix.pkgdeps}}
       - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
         env:
