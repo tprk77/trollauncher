@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: apt-get install -y ${{matrix.pkgdeps}}
-      - run: pip3 install meson
+      - run: pip install meson
       - run: meson setup --buildtype minsize rbuild
         env:
           CC: ${{matrix.cc}}
