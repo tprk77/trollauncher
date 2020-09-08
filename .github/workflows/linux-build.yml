@@ -33,6 +33,8 @@ jobs:
         with:
           submodules: true
       - run: apt-get install -y ${{matrix.pkgdeps}}
+        env:
+          DEBIAN_FRONTEND: noninteractive
       - run: meson setup --buildtype minsize rbuild
         env:
           CC: ${{matrix.cc}}
