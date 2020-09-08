@@ -24,4 +24,5 @@ jobs:
       - run: ./package/linux/make_package.sh
       - uses: actions/upload-artifact@v2
         with:
-          path: 'package/linux/trollauncher_*_amd64.deb'
+          name: trollauncher_ubuntu
+          path: 'package/linux/trollauncher_*.deb'
