@@ -4,7 +4,15 @@ on: [push]
 jobs:
   build:
     name: Ubuntu Build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
+    container:
+      image: ${{matrix.container}}
+    strategy:
+      matrix:
+        container: ['ubuntu:18.04']
+        include:
+          - container: 'ubuntu:18.04'
+            pkgdeps: g++-8 ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
     steps:
       - uses: actions/checkout@v2
         with:
@@ -13,7 +21,7 @@ jobs:
         with:
           python-version: '3.x'
       - run: sudo apt-get update
-      - run: sudo apt-get install -y g++-8 ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
+      - run: sudo apt-get install -y ${{matrix.pkgdeps}}
       - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
         env:
