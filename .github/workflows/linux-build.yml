@@ -21,3 +21,7 @@ jobs:
           CXX: g++-8
       - run: ninja -v -C rbuild
       - run: strip -s rbuild/trollauncher
+      - run: ./package/linux/make_package.sh
+      - uses: actions/upload-artifact@v2
+        with:
+          path: 'package/linux/trollauncher_*_amd64.deb'
