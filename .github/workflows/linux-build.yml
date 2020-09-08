@@ -13,20 +13,23 @@ jobs:
         include:
           - container: 'ubuntu:18.04'
             pkgdeps: g++-8 ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
+            cc: gcc-8
+            cxx: g++-8
     steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y git
       - uses: actions/checkout@v2
         with:
           submodules: true
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      - run: sudo apt-get update
       - run: sudo apt-get install -y ${{matrix.pkgdeps}}
       - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
         env:
-          CC: gcc-8
-          CXX: g++-8
+          CC: ${{matrix.cc}}
+          CXX: ${{matrix.cxx}}
       - run: ninja -v -C rbuild
       - run: strip -s rbuild/trollauncher
       - run: ./package/linux/make_package.sh
