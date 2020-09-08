@@ -17,7 +17,10 @@ jobs:
             cc: gcc-8
             cxx: g++-8
     steps:
-      - run: add-apt-repository ppa:git-core/ppa
+      # This is lame, should make a container for this...
+      - run: apt-get update
+      - run: apt-get install -y software-properties-common
+      - run: add-apt-repository -y ppa:git-core/ppa
       - run: apt-get update
       - run: apt-get install -y git
       - uses: actions/checkout@v2
