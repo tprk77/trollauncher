@@ -11,9 +11,14 @@ jobs:
       matrix:
         container:
           - ubuntu:18.04
+          - ubuntu:20.04
         include:
           - container: ubuntu:18.04
-            pkgdeps: g++-8 ninja-build libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
+            pkgdeps: g++-8 libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
+            cc: gcc-8
+            cxx: g++-8
+          - container: ubuntu:20.04
+            pkgdeps: g++-8 libboost-all-dev libzip-dev libwxgtk3.0-gtk3-dev libprocps-dev
             cc: gcc-8
             cxx: g++-8
     steps:
@@ -22,12 +27,12 @@ jobs:
       - run: apt-get install -y software-properties-common
       - run: add-apt-repository -y ppa:git-core/ppa
       - run: apt-get update
-      - run: apt-get install -y git python3 python3-pip
+      - run: apt-get install -y git python3 python3-pip ninja-build
+      - run: pip3 install meson
       - uses: actions/checkout@v2
         with:
           submodules: true
       - run: apt-get install -y ${{matrix.pkgdeps}}
-      - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
         env:
           CC: ${{matrix.cc}}
