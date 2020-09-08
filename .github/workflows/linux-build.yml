@@ -22,16 +22,12 @@ jobs:
       - run: apt-get install -y software-properties-common
       - run: add-apt-repository -y ppa:git-core/ppa
       - run: apt-get update
-      - run: apt-get install -y git
+      - run: apt-get install -y git python3 python3-pip
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-      - run: python -m pip install --upgrade pip
-      - run: pip install meson
       - run: apt-get install -y ${{matrix.pkgdeps}}
+      - run: pip3 install meson
       - run: meson setup --buildtype minsize rbuild
         env:
           CC: ${{matrix.cc}}
