@@ -4,8 +4,8 @@ Section: utils
 Priority: optional
 Maintainer: Tim Perkins <code@tprk77.net>
 Homepage: https://github.com/tprk77/trollauncher
-Architecture: amd64
-Depends: libboost-filesystem1.65.1 (>= 1.65.1+dfsg-0ubuntu5), libboost-system1.65.1 (>= 1.65.1+dfsg-0ubuntu5), libwxgtk3.0-0v5 (>= 3.0.4+dfsg-3), libzip4 (>=1.1.2-1.1)
+Architecture: @ARCH@
+Depends: @PKGDEPS@
 Description: Utility to create Minecraft Launcher profiles for modpacks
  Trollauncher is NOT a Minecraft Launcher. It's a modpack installer for the
  "Vanilla" Minecraft Launcher. Trollauncher is a simple utility to make

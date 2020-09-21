@@ -11,6 +11,11 @@ readonly SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 
 readonly MESON_FILE="${SCRIPT_DIR}/../../meson.build"
 
+readonly DIST_ID="$(lsb_release -si | tr '[:upper:]' '[:lower:]')"
+readonly DIST_REL="$(lsb_release -sr | sed -r -e 's;\.;;g')"
+readonly DIST="${DIST_ID}${DIST_REL}"
+readonly ARCH="$(dpkg --print-architecture)"
+
 # Search the "meson.build" file for a project version number. Instead of a proper parse, just grep
 # the top of the file for it. It won't work for arbitrary input, but that's ok, it will be fine for
 # our purposes. Expected format is, e.g., "version : '0.1.0',".
@@ -21,6 +26,17 @@ if [ -z "${VERSION}" ]; then
     echo "Could not detect project version!" 1>&2
     exit 1
 fi
+
+# Load "PKGDEPS" from a file based on "DIST"
+readonly PKGDEPS_FNAME="${SCRIPT_DIR}/${DIST}_pkgdeps.txt"
+
+if [ ! -f "${PKGDEPS_FNAME}" ]; then
+    echo "Could not locate PKGDEPS for this distro!" 1>&2
+    exit 1
+fi
+
+# Read "PKGDEPS" as a single line
+readonly PKGDEPS="$(paste -s --delimiters="" "${PKGDEPS_FNAME}")"
 
 readonly DEB_CONTROL_IN="${SCRIPT_DIR}/debian_control.in"
 readonly TROLLAUNCHER="${SCRIPT_DIR}/../../rbuild/trollauncher"
@@ -37,7 +53,7 @@ if [ ! -x "${TROLLAUNCHER}" ]; then
     exit 1
 fi
 
-readonly PACKAGE_DIR="${SCRIPT_DIR}/trollauncher_${VERSION}_amd64"
+readonly PACKAGE_DIR="${SCRIPT_DIR}/trollauncher_${VERSION}_${DIST}_${ARCH}"
 
 readonly DEB_DIR="${PACKAGE_DIR}/DEBIAN"
 readonly BIN_DIR="${PACKAGE_DIR}/usr/bin"
@@ -76,7 +92,11 @@ cp "${ICON_48}" "${ICON_48_DIR}/trollface.png"
 cp "${ICON_128}" "${ICON_128_DIR}/trollface.png"
 
 # Do version substitution
-sed -r -i "s;@VERSION@;${VERSION};" "${DEB_DIR}/control"
+sed -i -r \
+    -e "s;@VERSION@;${VERSION};g" \
+    -e "s;@ARCH@;${ARCH};g" \
+    -e "s;@PKGDEPS@;${PKGDEPS};g" \
+    "${DEB_DIR}/control"
 
 # Make the actual package
 dpkg-deb --build "${PACKAGE_DIR}"
