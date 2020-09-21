@@ -62,20 +62,14 @@ installed manually. Manually installing modpacks is tedious, and mistakes can
 introduce subtle errors that break the game. Other launchers like MultiMC don't
 work with Forge beyond Minecraft 1.12 (at the time of writing).
 
-### Versus Twitch ###
-
-The Twitch App works with the latest Forge, so why not use that?
-
-If you're happy with Twitch, then use Twitch. But it has two potential pitfalls:
-
-* You have to accept [Twitch's Privacy Policy][twitch_privacy_notice].
-* It doesn't work on Linux.
+**UPDATE:** As of [commit c9e851f][multimc_c9e851f], MultiMC was updated to work
+with Forge via [ForgeWrapper][forge_wrapper] (following [some][multimc_ebb17cb]
+[controversy][multimc_e6cc65c]). MultiMC is once again a viable option for
+modern Minecraft with Forge.
 
 ## Know Issues & Planned Features ##
 
 * The Forge installer isn't automated. You still have to click through it.
-* You can't update an existing profile (yet).
-* Modpacks can't use `universal.jar` with older Forge (yet).
 * Trollauncher isn't ported to MacOs (yet).
 
 ## Why the name? ##
@@ -90,7 +84,7 @@ Making a modpack is easy. You just need to zip up some files.
 
 A typical modpack will look something like this:
 
-```
+```text
 My_Modpack_Xyz_123/
 ├── config
 │   └── ...
@@ -134,21 +128,28 @@ If you're a programmer, you can build Trollauncher yourself.
 
 ### Building On Ubuntu ###
 
-```
+```text
 $ sudo apt-get update
 $ sudo apt-get install build-essential python3-pip ninja-build \
-    libboost-all-dev libzip-dev libwxgtk3.0-dev
+    g++-8 libboost-all-dev libzip-dev libwxgtk3.0-dev libprocps-dev
 $ sudo -H pip3 install meson
 $ cd trollauncher
-$ meson build
+$ meson setup build
 $ ninja -C build
+```
+
+On Ubuntu 18.04, you might need to specify a more recent compiler, like GCC 8,
+to get all the necessary C++17 support:
+
+```text
+$ CC=gcc-8 CXX=g++-8 meson setup build
 ```
 
 ### Building On Windows ###
 
 First install MSYS2, and start the MSYS2 MINGW64 Shell.
 
-```
+```text
 $ pacman -Syu
 $ pacman -Syu  # Yes, do it twice!
 $ pacman -S mingw64/mingw-w64-x86_64-toolchain \
@@ -157,7 +158,7 @@ $ pacman -S mingw64/mingw-w64-x86_64-toolchain \
     mingw64/mingw-w64-x86_64-wxWidgets
 $ pip3 install meson
 $ cd trollauncher
-$ meson build
+$ meson setup build
 $ ninja -C build
 ```
 
@@ -168,7 +169,10 @@ Trollauncher uses an MIT license. See `LICENSE.md` for details.
 <!-- Links -->
 
 [trollauncher_releases]: https://github.com/tprk77/trollauncher/releases
-[twitch_privacy_notice]: https://www.twitch.tv/p/legal/privacy-notice
+[multimc_c9e851f]: https://github.com/MultiMC/MultiMC5/commit/c9e851f12f501657629e41339ad604c3cfba82e1
+[multimc_ebb17cb]: https://github.com/MultiMC/MultiMC5/commit/ebb17cb5f8b4b7771c28bb0286846aa52d29d6a0
+[multimc_e6cc65c]: https://github.com/MultiMC/MultiMC5/commit/e6cc65cf69b3fb2c1fa08e6768669f826048af20
+[forge_wrapper]: https://github.com/ZekerZhayard/ForgeWrapper
 
 <!-- Local Variables: -->
 <!-- fill-column: 80 -->
