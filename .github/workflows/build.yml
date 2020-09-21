@@ -1,0 +1,26 @@
+name: Build
+on: [push, pull_request]
+
+jobs:
+  ubuntu-build:
+    name: Ubuntu Build
+    runs-on: ubuntu-latest
+    container:
+      image: ${{matrix.container}}
+    strategy:
+      matrix:
+        container:
+          - tprk77/trollauncherci:ubuntu1804
+          - tprk77/trollauncherci:ubuntu2004
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: meson setup --buildtype minsize rbuild
+      - run: ninja -v -C rbuild
+      - run: strip -s rbuild/trollauncher
+      - run: ./package/ubuntu/make_package.sh
+      - uses: actions/upload-artifact@v2
+        with:
+          name: trollauncher_ubuntu
+          path: 'package/ubuntu/trollauncher_*.deb'
