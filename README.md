@@ -155,12 +155,15 @@ $ pacman -Syu  # Yes, do it twice!
 $ pacman -S mingw64/mingw-w64-x86_64-toolchain \
     mingw64/mingw-w64-x86_64-python-pip mingw64/mingw-w64-x86_64-ninja \
     mingw64/mingw-w64-x86_64-boost mingw64/mingw-w64-x86_64-libzip \
-    mingw64/mingw-w64-x86_64-wxWidgets
+    mingw64/mingw-w64-x86_64-wxWidgets mingw64/mingw-w64-x86_64-jbigkit
 $ pip3 install meson
 $ cd trollauncher
 $ meson setup build
 $ ninja -C build
 ```
+
+JBIG-KIT is apparently a dependency of wxWidgets, but needs to be installed
+explicitly for some reason.
 
 ## License ##
 
