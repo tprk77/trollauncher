@@ -152,10 +152,10 @@ First install MSYS2, and start the MSYS2 MINGW64 Shell.
 ```text
 $ pacman -Syu
 $ pacman -Syu  # Yes, do it twice!
-$ pacman -S mingw64/mingw-w64-x86_64-toolchain \
-    mingw64/mingw-w64-x86_64-python-pip mingw64/mingw-w64-x86_64-ninja \
-    mingw64/mingw-w64-x86_64-boost mingw64/mingw-w64-x86_64-libzip \
-    mingw64/mingw-w64-x86_64-wxWidgets mingw64/mingw-w64-x86_64-jbigkit
+$ pacman -S mingw-w64-x86_64-toolchain \
+    mingw-w64-x86_64-python-pip mingw-w64-x86_64-ninja \
+    mingw-w64-x86_64-boost mingw-w64-x86_64-libzip \
+    mingw-w64-x86_64-wxWidgets mingw-w64-x86_64-jbigkit
 $ pip3 install meson
 $ cd trollauncher
 $ meson setup build
