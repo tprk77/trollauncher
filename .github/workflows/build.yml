@@ -4,7 +4,7 @@ on: [push, pull_request]
 jobs:
   ubuntu-build:
     name: Ubuntu Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: ${{matrix.container}}
     strategy:
@@ -23,4 +23,22 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: trollauncher_ubuntu
-          path: 'package/ubuntu/trollauncher_*.deb'
+          path: package/ubuntu/trollauncher_*.deb
+  windows-build:
+    name: Windows Build
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: docker pull tprk77/trollauncherci:windows2019
+      - run: docker run -v "${PWD}:C:\trollauncher" -w C:\trollauncher
+          tprk77/trollauncherci:windows2019
+          C:\msys64\usr\bin\bash.exe -lc
+          'meson setup --buildtype minsize rbuild
+            && ninja -v -C rbuild
+            && strip -s rbuild/trollauncher.exe'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: trollauncher_windows
+          path: rbuild/trollauncher.exe
