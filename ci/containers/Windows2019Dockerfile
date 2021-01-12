@@ -1,0 +1,45 @@
+# tprk77/trollauncherci:windows2019
+
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+ARG MSYS2_INSTALLER_URL=https://github.com/msys2/msys2-installer/releases/download/2020-06-29/msys2-base-x86_64-20200629.sfx.exe
+
+RUN curl -L -o C:\msys2.exe %MSYS2_INSTALLER_URL% \
+    && C:\msys2.exe -y -o"C:\" \
+    && del C:\msys2.exe \
+    && echo DONE -- %DATE% %TIME%
+
+RUN C:\msys64\usr\bin\bash.exe -lc " " \
+    && C:\msys64\usr\bin\bash.exe -lc "pacman -Syuu --noconfirm --noprogressbar" \
+    && C:\msys64\usr\bin\bash.exe -lc "pacman -Syuu --noconfirm --noprogressbar" \
+    && C:\msys64\usr\bin\bash.exe -lc "pacman -Scc --noconfirm" \
+    && echo DONE -- %DATE% %TIME%
+
+ENV MSYSTEM=MINGW64 \
+    CHERE_INVOKING=1
+
+RUN C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --noprogressbar \
+        git \
+        make \
+        zip" \
+    && C:\msys64\usr\bin\bash.exe -lc "pacman -Scc --noconfirm" \
+    && echo DONE -- %DATE% %TIME%
+
+RUN C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --noprogressbar \
+        mingw-w64-x86_64-gcc \
+        mingw-w64-x86_64-libtool \
+        mingw-w64-x86_64-python-pip \
+        mingw-w64-x86_64-ninja \
+        mingw-w64-x86_64-cmake \
+        mingw-w64-x86_64-pkg-config \
+        mingw-w64-x86_64-boost \
+        mingw-w64-x86_64-libzip \
+        mingw-w64-x86_64-wxWidgets \
+        mingw-w64-x86_64-jbigkit" \
+    && C:\msys64\usr\bin\bash.exe -lc "pacman -Scc --noconfirm" \
+    && echo DONE -- %DATE% %TIME%
+
+RUN C:\msys64\usr\bin\bash.exe -lc "pip3 install meson==0.55.0" \
+    && echo DONE -- %DATE% %TIME%
+
+CMD ["C:\\msys64\\usr\\bin\\bash.exe", "-l"]
