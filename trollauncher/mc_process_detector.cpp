@@ -173,7 +173,7 @@ McProcessRunning McProcessDetector::GetRunningMinecraft()
   // kind of the best option because matching just "minecraft-launcher" is a bit
   // generic and might give false positives.
   const std::regex launcher_regex(ITS_A_UNIX_SYSTEM
-                                      ? "^\\/opt\\/minecraft-launcher\\/minecraft-launcher"
+                                      ? "minecraft-launcher"
                                       : "\\\\Minecraft Launcher\\\\MinecraftLauncher\\.exe");
   // For the game, we want to specifically match instances of Minecraft launched
   // by the launcher. Luckily the launcher always adds an argument to the
@@ -183,6 +183,7 @@ McProcessRunning McProcessDetector::GetRunningMinecraft()
   const std::regex game_class_regex(
       "net\\.minecraft\\.client\\.main\\.Main"
       "|cpw\\.mods\\.modlauncher\\.Launcher"
+      "|cpw\\.mods\\.bootstraplauncher\\.BootstrapLauncher"
       "|net\\.minecraft\\.launchwrapper\\.Launch");
   bool found_launcher = false;
   bool found_game = false;
