@@ -23,6 +23,7 @@
 #include <memory>
 #include <optional>
 #include <system_error>
+#include <vector>
 
 #include "trollauncher/profile_data.hpp"
 
